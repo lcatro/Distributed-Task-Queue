@@ -1,15 +1,26 @@
 
 import local_database
 import pickle
+import random
 import thread
 import time
 
+
+def make_task_id() :
+    return str(time.time())+str(random.random())
 
 class single_task :
     
     def __init__(self,task_code) :
         self.task_code=task_code
-        self.task_id=str(time.time())
+        self.task_other_information=local_database.key_value()
+        self.task_id=make_task_id()
+        
+    def set_task_information(self,information_key_name,information_key_value) :
+        self.task_other_information.set_key(information_key_name,information_key_value)
+        
+    def get_task_information(self,information_key_name) :
+        return self.task_other_information.get_key(information_key_name)
         
     def get_task_id(self) :
         return self.task_id
@@ -22,12 +33,21 @@ class multiple_task :
     
     def __init__(self) :
         self.single_task_list=[]
-        self.task_id=str(time.time())
+        self.task_other_information=local_database.key_value()
+        self.task_id=make_task_id()
             
     def add_task(self,single_task_object) :
         self.single_task_list.append(single_task_object)
         
         return len(self.single_task_list)-1
+    
+    def find_task(self,task_id) :
+        for single_task_index in self.single_task_list :
+            if task_id==single_task_index.get_task_id() :
+                
+                return single_task_index
+            
+        return None
     
     def delete_task(self,task_id) :
         for single_task_index in self.single_task_list :
@@ -38,6 +58,24 @@ class multiple_task :
             
         return False
 
+    def set_task_information(self,information_key_name,information_key_value) :
+        self.task_other_information.set_key(information_key_name,information_key_value)
+        
+    def get_task_information(self,information_key_name) :
+        return self.task_other_information.get_key(information_key_name)
+        
+    def set_task_index_information(self,task_id,information_key_name,information_key_value) :
+        for task_index in self.single_task_list :
+            if task_id==task_index.get_task_id() :
+                task_index.set_key(information_key_name,information_key_value)
+        
+    def get_task_index_information(self,task_id,information_key_name) :
+        for task_index in self.single_task_list :
+            if task_id==task_index.get_task_id() :
+                return task_index.get_key(information_key_name)
+                
+        return None
+        
     def get_task_list_length(self) :
         return len(self.single_task_list)
     
@@ -85,7 +123,7 @@ class task_queue :
             )
         
         self.lock.release()
-
+        
     def get_task(self) :
         return_task=None
         
@@ -100,23 +138,49 @@ class task_queue :
         
         return return_task
     
+    def find_task(self,task_id) :
+        return_task=None
+        
+        self.lock.acquire()
+        
+        if len(self.task_list) :
+            for task_index in self.task_list :
+                if 'single_task'==task_index['task_type'] :
+                    if task_index['task_object'].get_task_id()==task_id :
+                        return_task=task_index['task_object']
+                        
+                        break
+                elif 'multiple_task'==task_index['task_type'] :
+                    if task_index['task_object'].get_task_id()==task_id :
+                        return_task=task_index['task_object']
+                        
+                        break
+                    else :
+                        task_object=task_index['task_object'].find_task(task_id)
+                        
+                        if not None==task_object :
+                            return_task=task_object
+            
+                            break
+            
+        self.lock.release()
+        
+        return return_task
+    
     def delete_task(self,task_id) :
         self.lock.acquire()
         
         for task_index in self.task_list :
-            if 'single_task'==task_index.task_type :
-                if task_id==task_index.task_object.get_task_id() :
-                    self.task_list.remove(task_index.task_object)
+            if 'single_task'==task_index['task_type'] :
+                if task_id==task_index['task_object'].get_task_id() :
+                    self.task_list.remove(task_index['task_object'])
                     
                     break
-            elif 'multiple_task'==task_index.task_type :
-                if task_id==task_index.task_object.get_task_id() :
-                    self.task_list.remove(task_index.task_object)
+            elif 'multiple_task'==task_index['task_type'] :
+                if task_id==task_index['task_object'].get_task_id() :
+                    self.task_list.remove(task_index['task_object'])
                     
                     break
-                else :
-                    if task_index.task_object.delete_task(task_id) :
-                        break
         
         self.lock.release()
         
@@ -156,7 +220,8 @@ class task_pool :
     def create_queue(self,task_queue_name) :
         self.lock.acquire()
         
-        self.task_queue_list[task_queue_name]=task_queue
+        if not self.task_queue_list.has_key(task_queue_name) :
+            self.task_queue_list[task_queue_name]=task_queue()
         
         self.lock.release()
         
@@ -199,7 +264,7 @@ class task_pool :
             return False
         
     
-if __name__=='__main__' :
+if __name__=='__main__' :  #  test case
     test_task_queue=task_queue()
     test_singal_task=single_task('print "TEST"')
     test_multiple_task=multiple_task()
@@ -224,4 +289,6 @@ if __name__=='__main__' :
     
     print 'test_task_queue.get_current_queue_length() ->',test_task_queue.get_current_queue_length()
 
+    print 'test_task_queue.find_task(test_singal_task.get_task_id()) ->',test_task_queue.find_task(test_singal_task.get_task_id())
+    print 'test_task_queue.find_task(test_multiple_task.get_task_id()) ->',test_task_queue.find_task(test_multiple_task.get_task_id())
 

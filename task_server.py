@@ -42,6 +42,12 @@ class task_slave_machine :
     def get_task_queue_length(self) :
         return self.slave_machine_task_queue.get_current_queue_length()
         
+    def get_current_execute_task_id(self) :
+        if task_slave_machine.task_slave_machine_state.running_task==self.slave_machine_state :
+            return self.slave_machine_current_execute_task['task_object'].get_task_id()
+            
+        return None
+        
     def dispatch_task(self) :
         if task_slave_machine.task_slave_machine_state.wait_for_dispatch==self.slave_machine_state :
             self.slave_machine_current_execute_task=self.slave_machine_task_queue.get_task()
@@ -208,6 +214,7 @@ class task_slave_machine_manager :
 class task_dispatch :
     
     __dispatch_task_queue=task_pool.task_queue()
+    __history_dispatch_task_queue=task_pool.task_queue()
     __dispatch_thread_lock=thread.allocate_lock()
     
     '''
@@ -299,9 +306,22 @@ class task_dispatch :
         task_dispatch.__dispatch_thread_lock.release()
     
     @staticmethod
+    def submit_result(task_id,task_result) :
+        task_dispatch.__dispatch_thread_lock.acquire()
+        
+        task=task_dispatch.find_task(task_id)
+        
+        if not None==task :
+            task['task_state']=task_pool.task_state.end
+            task['task_result']=task_result
+        
+        task_dispatch.__dispatch_thread_lock.release()
+    
+    @staticmethod
     def add_task(task,is_single_task) :
         task_dispatch.__dispatch_thread_lock.acquire()
         task_dispatch.__dispatch_task_queue.add_task(task,is_single_task)
+        task_dispatch.__history_dispatch_task_queue.add_task(task,is_single_task)
         task_dispatch.__dispatch_thread_lock.release()
         task_dispatch.dispatch()
 
@@ -362,6 +382,29 @@ class task_dispatch_handle(tornado.web.RequestHandler) :
         self.write(json.dumps(return_json))
 
         
+class task_report_handle(tornado.web.RequestHandler) :
+    
+    def get(self) :
+        slave_machine_id=self.get_argument('slave_machine_id')
+        slave_machine_execute_task_id=self.get_argument('slave_machine_execute_task_id')
+        slave_machine_report=self.get_argument('slave_machine_report')
+        return_json={}
+    
+        if not None==slave_machine_id and not None==slave_machine_execute_task_id and not None==slave_machine_report :
+            slave_machine=task_slave_machine_manager.get_slave_machine(slave_machine_id)
+            
+            if not None==slave_machine :
+                if task_slave_machine.task_slave_machine_state.running_task==slave_machine.get_slave_machine_state() and \
+                    slave_machine.get_current_execute_task_id()==slave_machine_execute_task_id :
+                    slave_machine.finish_task()
+                    task_dispatch.submit_result(slave_machine_execute_task_id,slave_machine_report)
+                    task_dispatch.dispatch()
+                    
+                    return_json['success']=slave_machine_execute_task_id
+    
+        self.write(json.dumps(return_json))
+    
+        
 def test_case() :
     test_task=task_pool.single_task('print 123')
 
@@ -380,7 +423,7 @@ def test_case() :
         
 if __name__=='__main__' :
     
-    test_case()
+#    test_case()
     
     handler = [
         ('/login',task_slave_login_handle),

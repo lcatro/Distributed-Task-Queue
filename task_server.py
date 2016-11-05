@@ -372,9 +372,10 @@ class task_add_task_handle(tornado.web.RequestHandler) :
         global TASK_DISPATCH_MANAGER_PASSWORD
         
         manager_password=self.get_argument('task_dispatch_manager_password')
+        remote_ip=self.request.remote_ip
         result_json={}
         
-        if TASK_DISPATCH_MANAGER_PASSWORD==manager_password :
+        if TASK_DISPATCH_MANAGER_PASSWORD==manager_password and '127.0.0.1'==remote_ip :
             task_type=self.get_argument('task_type')
             
             if 'single_task'==task_type :

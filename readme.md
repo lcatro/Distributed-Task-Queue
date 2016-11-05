@@ -5,7 +5,9 @@
   
 ##How to using Distributed Task Queue 
 
-  代码还在开发中..
+  `task_server` 是任务派遣服务器,最后封装好`task_add_task_handle` 再来补充这里<br/><br/>
+
+  `task_client` 是执行任务的模块,只需要运行这个Python 即可,`task_client.py` 依赖`requests` ,在布置的时候记得需要安装它
 
 ##Distributed Task Queue 的其他细节
 

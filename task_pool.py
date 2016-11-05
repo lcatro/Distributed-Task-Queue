@@ -181,12 +181,17 @@ class task_queue :
                         
                         break
                     else :
-                        task_object=task_index.find_task(task_id)
+                        pass
+                    #  WARNING !! read a single_task in multiple_task ,it can not return a object like self.task_list
+                    #  so we can not set task status ..
+                        '''
+                        task_object=task_index['task_object'].find_task(task_id)
                         
                         if not None==task_object :
                             return_task=task_object
             
                             break
+                        '''
             
         self.lock.release()
         

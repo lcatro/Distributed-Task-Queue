@@ -474,7 +474,7 @@ def test_case() :
         
 if __name__=='__main__' :
     
-#    test_case()
+    test_case()
     
     handler = [
         ('/login',task_slave_login_handle),

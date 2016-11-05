@@ -397,10 +397,11 @@ class task_add_task_handle(tornado.web.RequestHandler) :
                         task_dispatch.add_task(task_list,False)
                 except :
                     pass
+            result_json['success']='OK'
         else :
-            return_json['error']='None'
+            result_json['error']='None'
         
-        self.write(json.dumps(return_json))
+        self.write(json.dumps(result_json))
     
        
 class task_dispatch_handle(tornado.web.RequestHandler) :
@@ -446,6 +447,15 @@ class task_report_handle(tornado.web.RequestHandler) :
         self.write(json.dumps(return_json))
     
         
+def test_case_dynamic_add_task() :
+    import requests
+    
+    while True :
+        input_code=raw_input('>')
+        
+        requests.get('http://127.0.0.1/add_task?task_dispatch_manager_password=t4sk_s3rv3r_d1sp4tch_m4n4g3r_p4ssw0rd&task_type=single_task&task_eval_code='+input_code)
+        
+        
 def test_case() :
     test_task_1=task_pool.single_task('print 123')
     test_task_2=task_pool.single_task('print 321')
@@ -469,6 +479,7 @@ def test_case() :
     ]
     http_server=tornado.web.Application(handlers=handler)
 
+    thread.start_new_thread(test_case_dynamic_add_task,())
     http_server.listen(LOCAL_BIND_PORT)
     tornado.ioloop.IOLoop.current().start()
     

@@ -475,9 +475,9 @@ def test_case() :
     test_multiple_task.add_task(test_task_1)
     test_multiple_task.add_task(test_task_2)
     test_multiple_task.add_task(test_task_3)
-#    task_dispatch.add_task(test_task_1,True)
-#    task_dispatch.add_task(test_multiple_task,False)
-#    task_dispatch.add_task(test_task_3,True)
+    task_dispatch.add_task(test_task_1,True)
+    task_dispatch.add_task(test_multiple_task,False)
+    task_dispatch.add_task(test_task_3,True)
 
     handler = [
         ('/login',task_slave_login_handle),

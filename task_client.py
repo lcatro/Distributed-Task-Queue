@@ -1,5 +1,6 @@
 
 import json
+import random
 import requests
 import time
 
@@ -13,45 +14,49 @@ class task_slave :
     
     @staticmethod
     def login(login_password,local_ip,local_machine_name) :
-        login_url='http://127.0.0.1/login?slave_machine_login_password='+login_password+'&slave_machine_ip='+local_ip+'&slave_machine_name='+local_machine_name
-        login=requests.get(login_url)
-        login_result=json.loads(login.text)
-        
-        if login_result.has_key('slave_machine_id') :
-            task_slave.__slave_machine_id=login_result['slave_machine_id']
-            
-            return True
-        else :
+        try :
+            login_url='http://127.0.0.1/login?slave_machine_login_password='+login_password+'&slave_machine_ip='+local_ip+'&slave_machine_name='+local_machine_name
+            login=requests.get(login_url)
+            login_result=json.loads(login.text)
+
+            if login_result.has_key('slave_machine_id') :
+                task_slave.__slave_machine_id=login_result['slave_machine_id']
+
+                return True
+            else :
+                return False
+        except :
             return False
 
     @staticmethod
     def dispatch() :
         return_task_information={}
         
-        if not None==task_slave.__slave_machine_id :
-            dispatch_url='http://127.0.0.1/dispatch?slave_machine_id='+task_slave.__slave_machine_id
-            dispatch=requests.get(dispatch_url)
-            dispatch_result=json.loads(dispatch.text)
-            
-            if {}==dispatch_result :
-                return return_task_information
-            
-            dispatch_task=json.loads(dispatch_result['dispatch_task'])
-            dispatch_task_id=dispatch_task['task_id']
-            return_task_list=[]
-            
-            if dispatch_task.has_key('task_list') :
-                for task_index_ in dispatch_task['task_list'] :
-                    task_index=json.loads(task_index_)
-                    
-                    return_task_list.append(task_index['task_code'])
-            else :
-                return_task_list.append(dispatch_task['task_code'])
+        try :
+            if not None==task_slave.__slave_machine_id :
+                dispatch_url='http://127.0.0.1/dispatch?slave_machine_id='+task_slave.__slave_machine_id
+                dispatch=requests.get(dispatch_url)
+                dispatch_result=json.loads(dispatch.text)
 
-            return_task_information['task_id']=dispatch_task_id
-            return_task_information['task_list']=return_task_list
-            
-            return return_task_information
+                if {}==dispatch_result :
+                    return return_task_information
+
+                dispatch_task=json.loads(dispatch_result['dispatch_task'])
+                dispatch_task_id=dispatch_task['task_id']
+                return_task_list=[]
+
+                if dispatch_task.has_key('task_list') :
+                    for task_index_ in dispatch_task['task_list'] :
+                        task_index=json.loads(task_index_)
+
+                        return_task_list.append(task_index['task_code'])
+                else :
+                    return_task_list.append(dispatch_task['task_code'])
+
+                return_task_information['task_id']=dispatch_task_id
+                return_task_information['task_list']=return_task_list
+        except :
+            return_task_information={}
         
         return return_task_information
 
@@ -89,15 +94,18 @@ class task_slave :
     
     @staticmethod
     def logout() :
-        if not None==task_slave.__slave_machine_id :
-            logout_url='http://127.0.0.1/logout?slave_machine_id='+task_slave.__slave_machine_id
-            logout=requests.get(logout_url)
-            logout_result=json.loads(logout.text)
+        try :
+            if not None==task_slave.__slave_machine_id :
+                logout_url='http://127.0.0.1/logout?slave_machine_id='+task_slave.__slave_machine_id
+                logout=requests.get(logout_url)
+                logout_result=json.loads(logout.text)
+        except :
+            pass
     
     
 if __name__=='__main__' :
     
-    if task_slave.login('t4sk_s3rv3r_l0g1n_p4ssw0rd','127.0.0.1','slave1') :
+    if task_slave.login('t4sk_s3rv3r_l0g1n_p4ssw0rd','127.0.0.1','slave'+str(time.time())+str(random.random())) :
         
         try :
             while True :

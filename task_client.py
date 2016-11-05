@@ -22,33 +22,41 @@ if __name__=='__main__' :
 
         dispatch_task=json.loads(dispatch_result['dispatch_task'])
         dispatch_task_id=dispatch_task['task_id']
-        report_except_name=None
-        report_exception_descript=None
-
+        report_json={}
+        
         try :
             if dispatch_task.has_key('task_list') :
                 print 'Execute multiple_task :'
                 print ''
                 
+                task_result_list=[]
+                
                 for task_index_ in dispatch_task['task_list'] :
                     task_index=json.loads(task_index_)
                     
                     exec(task_index['task_code'])
+                    task_result_list.append(report_result)
+                    
+                report_json['report_result']=task_result_list
             else :
                 print 'Execute single_task :'
                 print ''
                 
                 exec(dispatch_task['task_code'])
-        except :#exception_name,exception_descript :
-#            report_except_name=exception_name
-#            report_exception_descript=exception_descript
-            pass
+                
+                report_json['report_result']=report_result
+            report_json['report_state']='end'
+        except Exception,e :
+            report_json['report_except_name']=Exception
+            report_json['report_exception_descript']=e.message
+            report_json['report_state']='except'
 
 #        print 'dispatch ',dispatch_url
 #        print '->',dispatch_task
 #        print 'exec() result ->',dispatch_task_result
 
-        dispatch_url='http://127.0.0.1/report?slave_machine_id='+slave_machine_id+'&slave_machine_execute_task_id='+dispatch_task_id+'&slave_machine_report='
+        report_json_string=json_dumps(report_json)
+        dispatch_url='http://127.0.0.1/report?slave_machine_id='+slave_machine_id+'&slave_machine_execute_task_id='+dispatch_task_id+'&slave_machine_report='+report_json_string
         report=requests.get(dispatch_url)
         report_result=json.loads(report.text)
 

@@ -52,10 +52,12 @@ class task_slave_machine :
     def dispatch_task(self) :
         if task_slave_machine.task_slave_machine_state.wait_for_dispatch==self.slave_machine_state :
             self.slave_machine_current_execute_task=self.slave_machine_task_queue.get_task()
-            self.slave_machine_state=task_slave_machine.task_slave_machine_state.running_task
-            self.slave_machine_time_tick=time.time()
             
-            return self.slave_machine_current_execute_task
+            if not None==self.slave_machine_current_execute_task :
+                self.slave_machine_state=task_slave_machine.task_slave_machine_state.running_task
+                self.slave_machine_time_tick=time.time()
+
+                return self.slave_machine_current_execute_task
         
         return None
         
@@ -320,6 +322,10 @@ class task_dispatch :
         task_dispatch.__dispatch_thread_lock.release()
     
     @staticmethod
+    def get_dispatch_task_queue_length() :
+        return task_dispatch.__dispatch_task_queue.get_current_queue_length()
+    
+    @staticmethod
     def add_task(task,is_single_task) :
         task_dispatch.__dispatch_thread_lock.acquire()
         task_dispatch.__dispatch_task_queue.add_task(task,is_single_task)
@@ -453,7 +459,10 @@ def test_case_dynamic_add_task() :
     while True :
         input_code=raw_input('>')
         
-        requests.get('http://127.0.0.1/add_task?task_dispatch_manager_password=t4sk_s3rv3r_d1sp4tch_m4n4g3r_p4ssw0rd&task_type=single_task&task_eval_code='+input_code)
+        if 'len'==input_code :
+            print 'len:',task_dispatch.get_dispatch_task_queue_length()
+        else :
+            requests.get('http://127.0.0.1/add_task?task_dispatch_manager_password=t4sk_s3rv3r_d1sp4tch_m4n4g3r_p4ssw0rd&task_type=single_task&task_eval_code='+input_code)
         
         
 def test_case() :
@@ -466,9 +475,9 @@ def test_case() :
     test_multiple_task.add_task(test_task_1)
     test_multiple_task.add_task(test_task_2)
     test_multiple_task.add_task(test_task_3)
-    task_dispatch.add_task(test_task_1,True)
-    task_dispatch.add_task(test_multiple_task,False)
-    task_dispatch.add_task(test_task_3,True)
+#    task_dispatch.add_task(test_task_1,True)
+#    task_dispatch.add_task(test_multiple_task,False)
+#    task_dispatch.add_task(test_task_3,True)
 
     handler = [
         ('/login',task_slave_login_handle),

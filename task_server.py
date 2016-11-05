@@ -10,6 +10,7 @@ import tornado.ioloop
 
 LOCAL_BIND_PORT=80
 SLAVE_LOGIN_PASSWORD='t4sk_s3rv3r_l0g1n_p4ssw0rd'
+TASK_DISPATCH_MANAGER_PASSWORD='t4sk_s3rv3r_d1sp4tch_m4n4g3r_p4ssw0rd'
 
 
 class task_slave_machine :
@@ -116,7 +117,8 @@ class task_slave_machine_manager :
                 slave_machine_id=task_slave_machine_manager.__make_slave_machine_id(slave_machine_ip,slave_machine_name)
                 new_task_slave_machine=task_slave_machine(slave_machine_id,slave_machine_ip,slave_machine_name)
                 task_slave_machine_manager.__slave_machine_list[slave_machine_id]=new_task_slave_machine
-                return_slave_machine_id=slave_machine_id
+                
+            return_slave_machine_id=slave_machine_id
     
         task_slave_machine_manager.__slave_thread_lock.release()
         
@@ -309,7 +311,7 @@ class task_dispatch :
     def submit_result(task_id,task_result) :
         task_dispatch.__dispatch_thread_lock.acquire()
         
-        task=task_dispatch.find_task(task_id)
+        task=task_dispatch.__history_dispatch_task_queue.find_task(task_id)
         
         if not None==task :
             task['task_state']=task_pool.task_state.end
@@ -363,6 +365,42 @@ class task_slave_logout_handle(tornado.web.RequestHandler) :
         
         self.write(json.dumps(return_json))
         
+        
+class task_add_task_handle(tornado.web.RequestHandler) :
+    
+    def get(self) :
+        global TASK_DISPATCH_MANAGER_PASSWORD
+        
+        manager_password=self.get_argument('task_dispatch_manager_password')
+        result_json={}
+        
+        if TASK_DISPATCH_MANAGER_PASSWORD==manager_password :
+            task_type=self.get_argument('task_type')
+            
+            if 'single_task'==task_type :
+                task_eval_code=self.get_argument('task_eval_code')
+                
+                task_dispatch.add_task(task_pool.single_task(task_eval_code),True)
+            elif 'multiple_task'==task_type :
+                try :
+                    task_code_list_json=self.get_argument('task_code_list')
+                    task_code_list=json.loads(task_code_list_json)
+                    task_list=task_pool.multiple_task()
+                    
+                    if len(task_code_list) :
+                        for task_index in task_code_list :
+                            task=task_pool.single_task(task_index['task_eval_code'])
+
+                            task_code_list.add_task(task_index)
+
+                        task_dispatch.add_task(task_list,False)
+                except :
+                    pass
+        else :
+            return_json['error']='None'
+        
+        self.write(json.dumps(return_json))
+    
        
 class task_dispatch_handle(tornado.web.RequestHandler) :
 
@@ -377,7 +415,9 @@ class task_dispatch_handle(tornado.web.RequestHandler) :
                 new_task=slave_machine.dispatch_task()
                 
                 if not None==new_task :
-                    return_json['dispatch_task']=new_task['task_object'].serialize()
+#                    return_json['dispatch_task']=new_task['task_object'].python_serialize()  #  Python serialize
+                    return_json['dispatch_task']=new_task['task_object'].json_serialize()  #  JSON serialize
+                    # WARNING ! it making serialize for task_object ,so we need to deserialize again ..
 
         self.write(json.dumps(return_json))
 
@@ -406,14 +446,25 @@ class task_report_handle(tornado.web.RequestHandler) :
     
         
 def test_case() :
-    test_task=task_pool.single_task('print 123')
+    test_task_1=task_pool.single_task('print 123')
+    test_task_2=task_pool.single_task('print 321')
+    test_task_3=task_pool.single_task('print 1234567')
 
-    task_dispatch.add_task(test_task,True)
+    test_multiple_task=task_pool.multiple_task()
+    
+    test_multiple_task.add_task(test_task_1)
+    test_multiple_task.add_task(test_task_2)
+    test_multiple_task.add_task(test_task_3)
+    task_dispatch.add_task(test_task_1,True)
+    task_dispatch.add_task(test_multiple_task,False)
+    task_dispatch.add_task(test_task_3,True)
 
     handler = [
         ('/login',task_slave_login_handle),
         ('/logout',task_slave_logout_handle),
+        ('/add_task',task_add_task_handle),
         ('/dispatch',task_dispatch_handle),
+        ('/report',task_report_handle),
     ]
     http_server=tornado.web.Application(handlers=handler)
 
@@ -427,10 +478,18 @@ if __name__=='__main__' :
     
     handler = [
         ('/login',task_slave_login_handle),
+        #  http://127.0.0.1/login?slave_machine_login_password=t4sk_s3rv3r_l0g1n_p4ssw0rd&slave_machine_ip=127.0.0.1&slave_machine_name=slave1
         ('/logout',task_slave_logout_handle),
+        #  http://127.0.0.1/logout?slave_machine_id=
+        ('/add_task',task_add_task_handle),
+        #  http://127.0.0.1/add_task?task_dispatch_manager_password=t4sk_s3rv3r_d1sp4tch_m4n4g3r_p4ssw0rd&task_type=single_task&task_eval_code=
         ('/dispatch',task_dispatch_handle),
+        #  http://127.0.0.1/dispatch?slave_machine_id=
+        ('/report',task_report_handle),
+        #  http://127.0.0.1/report?slave_machine_id=&slave_machine_execute_task_id=&slave_machine_report=
     ]
     http_server=tornado.web.Application(handlers=handler)
     
     http_server.listen(LOCAL_BIND_PORT)
     tornado.ioloop.IOLoop.current().start()
+    

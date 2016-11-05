@@ -1,4 +1,5 @@
 
+import json
 import local_database
 import pickle
 import random
@@ -25,9 +26,19 @@ class single_task :
     def get_task_id(self) :
         return self.task_id
     
-    def serialize(self) :
+    def python_serialize(self) :
         return pickle.dumps(self)
     
+    def json_serialize(self) :
+        return_json={}
+        return_json['task_id']=self.task_id
+        return_json['task_code']=self.task_code
+        return_json['task_other_information']={}
+        
+        for task_other_information_key_index in self.task_other_information.list_key() :
+            return_json['task_other_information'][task_other_information_key_index]=self.task_other_information.get_key(task_other_information_key_index)
+            
+        return json.dumps(return_json)
     
 class multiple_task :
     
@@ -82,9 +93,23 @@ class multiple_task :
     def get_task_id(self) :
         return self.task_id
     
-    def serialize(self) :
+    def python_serialize(self) :
         return pickle.dumps(self)
     
+    def json_serialize(self) :
+        return_json={}
+        return_json['task_id']=self.task_id
+        return_json['task_list']=[]
+        
+        for task_index in self.single_task_list :
+            return_json['task_list'].append(task_index.json_serialize())
+        
+        return_json['task_other_information']={}
+        
+        for task_other_information_key_index in self.task_other_information.list_key() :
+            return_json['task_other_information'][task_other_information_key_index]=self.task_other_information.get_key(task_other_information_key_index)
+        
+        return json.dumps(return_json)
 
 class task_state :
     
@@ -147,16 +172,16 @@ class task_queue :
             for task_index in self.task_list :
                 if 'single_task'==task_index['task_type'] :
                     if task_index['task_object'].get_task_id()==task_id :
-                        return_task=task_index['task_object']
+                        return_task=task_index
                         
                         break
                 elif 'multiple_task'==task_index['task_type'] :
                     if task_index['task_object'].get_task_id()==task_id :
-                        return_task=task_index['task_object']
+                        return_task=task_index
                         
                         break
                     else :
-                        task_object=task_index['task_object'].find_task(task_id)
+                        task_object=task_index.find_task(task_id)
                         
                         if not None==task_object :
                             return_task=task_object
@@ -269,7 +294,7 @@ if __name__=='__main__' :  #  test case
     test_singal_task=single_task('print "TEST"')
     test_multiple_task=multiple_task()
     
-    print 'test_singal_task.serialize() ->',test_singal_task.serialize()
+    print 'test_singal_task.serialize() ->',test_singal_task.python_serialize()
     
     for create_task_index in range(5) :
         test_multiple_task.add_task(single_task('print '+str(create_task_index)))

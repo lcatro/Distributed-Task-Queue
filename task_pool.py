@@ -125,7 +125,7 @@ class task_queue :
         self.task_list=[]
         self.lock=thread.allocate_lock()
         
-    def add_task(self,task,is_single_task) :
+    def add_task(self,task,is_single_task,is_necessary_task=False) :
         self.lock.acquire()
         
         if is_single_task :
@@ -134,6 +134,7 @@ class task_queue :
                     'task_type':'single_task',
                     'task_object':task,
                     'task_state':task_state.unexecute,
+                    'task_is_necessary':is_necessary_task,
                     'task_result':None
                 }
             )
@@ -143,6 +144,7 @@ class task_queue :
                     'task_type':'multiple_task',
                     'task_object':task,
                     'task_state':task_state.unexecute,
+                    'task_is_necessary':is_necessary_task,
                     'task_result':None
                 }
             )

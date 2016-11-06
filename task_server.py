@@ -37,7 +37,7 @@ class task_slave_machine :
     def get_slave_machine_name(self) :
         return self.slave_machine_name
         
-    def add_task(self,task,is_single_task) :
+    def add_task(self,task,is_single_task,is_necessary_task=False) :
         self.slave_machine_task_queue.add_task(task,is_single_task)
         
     def get_task_queue_length(self) :
@@ -278,10 +278,11 @@ class task_dispatch :
                     elif first_free_slave_machine.get_task_queue_length()>slave_machine.get_task_queue_length() :
                         first_free_slave_machine=slave_machine
                         
-                if 'single_task'==first_task['task_type'] :
-                    first_free_slave_machine.add_task(first_task['task_object'],True)
-                else :
-                    first_free_slave_machine.add_task(first_task['task_object'],False)
+                if not first_task['task_is_necessary'] :
+                    if 'single_task'==first_task['task_type'] :
+                        first_free_slave_machine.add_task(first_task['task_object'],True)
+                    else :
+                        first_free_slave_machine.add_task(first_task['task_object'],False)
             else :  #  dynamic adjust slave machine's pressure balance
                 first_free_slave_machine_id=None
                 first_busy_slave_machine_id=None
@@ -302,10 +303,11 @@ class task_dispatch :
                 if not first_free_slave_machine_id==first_busy_slave_machine_id :
                     balance_task=task_slave_machine_manager.get_slave_machine(first_busy_slave_machine_id).get_task()
                     
-                    if 'single_task'==balance_task['task_type'] :
-                        task_slave_machine_manager.get_slave_machine(first_free_slave_machine_id).add_task(balance_task['task_object'],True)
-                    else :
-                        task_slave_machine_manager.get_slave_machine(first_free_slave_machine_id).add_task(balance_task['task_object'],False)
+                    if not first_task['task_is_necessary'] :
+                        if 'single_task'==balance_task['task_type'] :
+                            task_slave_machine_manager.get_slave_machine(first_free_slave_machine_id).add_task(balance_task['task_object'],True)
+                        else :
+                            task_slave_machine_manager.get_slave_machine(first_free_slave_machine_id).add_task(balance_task['task_object'],False)
         
         task_dispatch.__dispatch_thread_lock.release()
     
@@ -326,10 +328,19 @@ class task_dispatch :
         return task_dispatch.__dispatch_task_queue.get_current_queue_length()
     
     @staticmethod
-    def add_task(task,is_single_task) :
+    def add_task(task,is_single_task,dispatch_to_target_slave_machine_id=None) :
         task_dispatch.__dispatch_thread_lock.acquire()
-        task_dispatch.__dispatch_task_queue.add_task(task,is_single_task)
-        task_dispatch.__history_dispatch_task_queue.add_task(task,is_single_task)
+        
+        if None==dispatch_to_target_slave_machine_id :
+            task_dispatch.__dispatch_task_queue.add_task(task,is_single_task)
+            task_dispatch.__history_dispatch_task_queue.add_task(task,is_single_task)
+        else :
+            if task_slave_machine_manager.is_valid_slave_machine_id(dispatch_to_target_slave_machine_id) :
+                target_slave_machine=task_slave_machine_manager.get_slave_machine(dispatch_to_target_slave_machine_id)
+                
+                target_slave_machine.add_task(task,is_single_task,True)
+                task_dispatch.__history_dispatch_task_queue.add_task(task,is_single_task)
+            
         task_dispatch.__dispatch_thread_lock.release()
         task_dispatch.dispatch()
 
@@ -383,11 +394,17 @@ class task_add_task_handle(tornado.web.RequestHandler) :
         
         if TASK_DISPATCH_MANAGER_PASSWORD==manager_password and '127.0.0.1'==remote_ip :
             task_type=self.get_argument('task_type')
+            task_dispatch_to_target_object_id=None
+            
+            try :
+                task_dispatch_to_target_object_id=self.get_argument('dispatch_to_target_object_id')
+            except :
+                task_dispatch_to_target_object_id=None
             
             if 'single_task'==task_type :
                 task_eval_code=self.get_argument('task_eval_code')
                 
-                task_dispatch.add_task(task_pool.single_task(task_eval_code),True)
+                task_dispatch.add_task(task_pool.single_task(task_eval_code),True,task_dispatch_to_target_object_id)
             elif 'multiple_task'==task_type :
                 try :
                     task_code_list_json=self.get_argument('task_code_list')
@@ -400,7 +417,7 @@ class task_add_task_handle(tornado.web.RequestHandler) :
 
                             task_code_list.add_task(task_index)
 
-                        task_dispatch.add_task(task_list,False)
+                        task_dispatch.add_task(task_list,False,task_dispatch_to_target_object_id)
                 except :
                     pass
             result_json['success']='OK'
@@ -461,6 +478,11 @@ def test_case_dynamic_add_task() :
         
         if 'len'==input_code :
             print 'len:',task_dispatch.get_dispatch_task_queue_length()
+        elif 'target'==input_code :
+            machine_id=raw_input('slave_machine_id >')
+            code=raw_input('code >')
+            
+            requests.get('http://127.0.0.1/add_task?task_dispatch_manager_password=t4sk_s3rv3r_d1sp4tch_m4n4g3r_p4ssw0rd&task_type=single_task&dispatch_to_target_object_id='+machine_id+'&task_eval_code='+code)
         else :
             requests.get('http://127.0.0.1/add_task?task_dispatch_manager_password=t4sk_s3rv3r_d1sp4tch_m4n4g3r_p4ssw0rd&task_type=single_task&task_eval_code='+input_code)
         

@@ -21,6 +21,8 @@ class task_slave :
 
             if login_result.has_key('slave_machine_id') :
                 task_slave.__slave_machine_id=login_result['slave_machine_id']
+                
+                print 'Login Slave ID :'+task_slave.__slave_machine_id
 
                 return True
             else :

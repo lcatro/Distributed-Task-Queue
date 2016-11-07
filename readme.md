@@ -41,9 +41,13 @@
   `TIPS : 限制在本地主机IP 管理`<br/>
     http://127.0.0.1/add_task?task_dispatch_manager_password=&task_type=&task_eval_code=
   
+  关于服务器相关的接口使用例子保存在`task_server.py test_case()` ,客户端相关的接口使用例子保存在`task_client.py task_slave` 类
+  
   <br/>
   
-  `task_client` 是执行任务的模块,只需要运行这个Python 即可,`task_client.py` 依赖`requests` ,在布置的时候记得需要安装它
+  `task_client` 是执行任务的模块,只需要运行这个Python 即可,`task_client.py` 依赖`requests` ,在布置的时候记得需要安装它<br/>
+
+  ![using_example](https://raw.githubusercontent.com/lcatro/Distributed-Task-Queue/master/readme_pic/using_example.png)
 
 ##Distributed Task Queue 的其他细节
 
@@ -63,5 +67,4 @@
 
 ####任务服务器的维护备份
 
-  这部分还在开发,下次补上
-
+  任务服务器的备份方式分别为:**热备份**和**冷备份**,相关逻辑在`task_server.py task_dispatch.hot_backup_task_dispatch() 和task_dispatch.cold_backup_task_dispatch()` ,热备份直接把任务队列和当前登陆到任务服务器的主机列表保存到`database/task_dispatch.db` 中;冷备份需要等待所有执行任务的主机执行完所有任务之后进入停机状态,然后保存数据,使用冷备份的方式需要用`task_dispatch.recovery_task_dispatch()` 使dispatch 服务器重新启动.简单地说,热备份适用于定时备份当前的数据,冷备份适用于服务器进入停机维护状态

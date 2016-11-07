@@ -40,6 +40,7 @@ class single_task :
             
         return json.dumps(return_json)
     
+    
 class multiple_task :
     
     def __init__(self) :
@@ -111,6 +112,7 @@ class multiple_task :
         
         return json.dumps(return_json)
 
+    
 class task_state :
     
     unexecute=0

@@ -5,8 +5,44 @@
   
 ##How to using Distributed Task Queue 
 
-  `task_server` 是任务派遣服务器,最后封装好`task_add_task_handle` 再来补充这里<br/><br/>
-
+  `task_server` 是任务派遣服务器,包含有任务调度算法,使用HTTP 协议通信,支持的接口如下:<br/>
+  
+  slave machine 登陆接口(**slave_machine_login_password** 登陆密码,**slave_machine_ip** 主机IP ,**slave_machine_name** 主机名)<br/>
+  返回值:slave_machine_id 服务器分配主机唯一ID 
+    http://127.0.0.1/login?slave_machine_login_password=&slave_machine_ip=&slave_machine_name=
+  
+  slave machine 退出接口(**slave_machine_id** 服务器分配主机唯一ID )<br/>
+  返回值:success 或者error <br/>
+  `TIPS : 退出之后任务系统会重新调度任务列表`
+    http://127.0.0.1/logout?slave_machine_id=
+  
+  slave machine 任务领取接口(**slave_machine_id** 服务器分配主机唯一ID )<br/>
+  返回值:任务详细信息
+    http://127.0.0.1/dispatch?slave_machine_id=
+  
+  slave machine 任务报告接口(**slave_machine_id** 服务器分配主机唯一ID ,**slave_machine_execute_task_id** 任务ID ,**slave_machine_report** 详细报告信息)<br/>
+  返回值:success 或者error 
+    http://127.0.0.1/report?slave_machine_id=&slave_machine_execute_task_id=&slave_machine_report=
+    
+  task dispatch server 管理接口(**task_dispatch_manager_password** 管理密码,**manager_operate_type** 管理命令,**manager_operate_argument** 管理命令参数列表)<br/>
+  返回值:详细信息<br/>
+  `TIPS : 限制在本地主机IP 管理`
+    http://127.0.0.1/manager?task_dispatch_manager_password=&manager_operate_type=recovery&manager_operate_argument=
+    
+    manager_operate_type 支持命令:
+    recovery                恢复task dispatch 服务器环境
+    hot_backup              热备份task dispatch 数据(直接保存当前任务队列信息和主机列表)
+    cold_backup             冷备份task dispatch 数据(等待所有主机执行完成任务再备份任务队列信息和主机列表)
+    queue                   查看当前任务队列信息
+    slave_machine_list      查看slave machine 列表
+    
+  task dispatch server 添加单任务接口(**task_dispatch_manager_password** 管理密码,**task_type** 任务类型,**task_eval_code** 任务代码)<br/>
+  返回值:success 或者error<br/>
+  `TIPS : 限制在本地主机IP 管理`
+    http://127.0.0.1/add_task?task_dispatch_manager_password=&task_type=&task_eval_code=
+  
+  <br/>
+  
   `task_client` 是执行任务的模块,只需要运行这个Python 即可,`task_client.py` 依赖`requests` ,在布置的时候记得需要安装它
 
 ##Distributed Task Queue 的其他细节

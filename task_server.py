@@ -466,7 +466,8 @@ class task_slave_logout_handle(tornado.web.RequestHandler) :
             slave_machine_unexecute_task_list=task_slave_machine_manager.logout_slave_machine(slave_machine_id)
 
             for slave_machine_unexecute_task_index in slave_machine_unexecute_task_list :
-                task_dispatch.add_task(slave_machine_unexecute_task_index['task_object'],slave_machine_unexecute_task_index['task_type'])
+                if not slave_machine_unexecute_task_index['task_is_necessary'] :
+                    task_dispatch.add_task(slave_machine_unexecute_task_index['task_object'],slave_machine_unexecute_task_index['task_type'])
         
             return_json['success']='OK'
         else :
@@ -529,7 +530,7 @@ class task_manager_handle(tornado.web.RequestHandler) :
         manager_operate_argument=None
         
         try :
-            manager_operate_argument=self.get_argument('slave_machine_report')
+            manager_operate_argument=self.get_argument('manager_operate_argument')
         except :
             manager_operate_argument=None
             

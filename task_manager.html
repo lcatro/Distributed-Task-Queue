@@ -1,0 +1,283 @@
+
+<html>
+
+    <script>
+    
+        var task_dispatch_manager_password='%task_dispatch_manager_password%';
+        var task_dispatch_manager_base_url='http://127.0.0.1/';
+        
+        
+        function build_url_argument_string(url_argument_list) {
+            var url_argument_string='';
+            
+            for (var url_argument_index in url_argument_list)
+                eval('url_argument_string+="'+url_argument_index+'="+url_argument_list.'+url_argument_index+'+"&"');
+            
+            if (url_argument_string.length)
+                url_argument_string=url_argument_string.substr(0,url_argument_string.length-1);
+                
+            return url_argument_string;
+        }
+        
+        function request_get(request_url,request_argument_list) {
+            var request=new XMLHttpRequest();
+            
+            request.open('get',request_url+'?'+build_url_argument_string(request_argument_list),false);
+            request.send();
+            
+            if (4==request.readyState)
+                return JSON.parse(request.responseText);
+            
+            return false;
+        }
+        
+        function request_post(request_url,request_argument_list) {
+            var request=new XMLHttpRequest();
+            
+            request.open('post',request_url,false);
+            request.setRequestHeader('Content-Type','application/x-www-form-urlencoded');
+            request.send(build_url_argument_string(request_argument_list));
+            
+            if (4==request.readyState)
+                return JSON.parse(request.responseText);
+            
+            return false;
+        }
+        
+        function base64_encode(input_string) {
+            return window.btoa(input_string);
+        }
+        
+        function base64_decode(input_string) {
+            return window.atob(input_string);
+        }
+        
+        function get_queue_length() {
+            url_argument={};
+            url_argument.task_dispatch_manager_password=task_dispatch_manager_password;
+            url_argument.manager_operate_type='queue';
+            
+            result=request_get('http://127.0.0.1/manager',url_argument);
+            
+            if (undefined!=result.queue_length)
+                return result.queue_length;
+            
+            return -1;
+        }
+        
+        function get_slave_machine_list() {
+            url_argument={};
+            url_argument.task_dispatch_manager_password=task_dispatch_manager_password;
+            url_argument.manager_operate_type='slave_machine_list';
+            
+            result=request_get('http://127.0.0.1/manager',url_argument);
+            
+            if (undefined!=result.slave_machine_list)
+                return result.slave_machine_list;
+            
+            return false;
+        }
+        
+        function recovery() {
+            url_argument={};
+            url_argument.task_dispatch_manager_password=task_dispatch_manager_password;
+            url_argument.manager_operate_type='recovery';
+            
+            result=request_get('http://127.0.0.1/manager',url_argument);
+            
+            if (undefined!=result.success)
+                return true;
+            
+            return false;
+        }
+        
+        function hot_backup() {
+            url_argument={};
+            url_argument.task_dispatch_manager_password=task_dispatch_manager_password;
+            url_argument.manager_operate_type='hot_backup';
+            
+            result=request_get('http://127.0.0.1/manager',url_argument);
+            
+            if (undefined!=result.success)
+                return true;
+            
+            return false;
+        }
+        
+        function cold_backup() {
+            url_argument={};
+            url_argument.task_dispatch_manager_password=task_dispatch_manager_password;
+            url_argument.manager_operate_type='cold_backup';
+            
+            result=request_get('http://127.0.0.1/manager',url_argument);
+            
+            if (undefined!=result.success)
+                return true;
+            
+            return false;
+        }
+        
+        function add_single_task(task_code) {  //  add a single task ..
+            url_argument={};
+            url_argument.task_dispatch_manager_password=task_dispatch_manager_password;
+            url_argument.task_type='single_task';
+            url_argument.task_eval_code=base64_encode(task_code);
+            
+            result=request_post('http://127.0.0.1/add_task',url_argument);
+            
+            if (undefined!=result.success)
+                return true;
+            
+            return false;
+        }
+        
+        function add_multiple_task(task_code_list) {  //  add a multiple task ..
+            encode_task_code_list=[]
+            
+            for (var encode_task_code_index in task_code_list)
+                encode_task_code_list.append(base64_encode(encode_task_code_index));
+            
+            url_argument={};
+            url_argument.task_dispatch_manager_password=task_dispatch_manager_password;
+            url_argument.task_type='multiple_task';
+            url_argument.task_code_list=JSON.stringify(encode_task_code_list);
+            
+            result=request_post('http://127.0.0.1/add_task',url_argument);
+            
+            if (undefined!=result.success)
+                return true;
+            
+            return false;
+        }
+        
+        function add_single_task_to_target_slave_machine(task_code,slave_machine_id) {
+            url_argument={};
+            url_argument.dispatch_to_target_object_id=slave_machine_id;
+            url_argument.task_dispatch_manager_password=task_dispatch_manager_password;
+            url_argument.task_type='single_task';
+            url_argument.task_eval_code=base64_encode(task_code);
+            
+            result=request_post('http://127.0.0.1/add_task',url_argument);
+            
+            if (undefined!=result.success)
+                return true;
+            
+            return false;
+        }
+        
+        function add_multiple_task_to_target_slave_machine(task_code_list,slave_machine_id) {
+            encode_task_code_list=[]
+            
+            for (var encode_task_code_index in task_code_list)
+                encode_task_code_list.append(base64_encode(encode_task_code_index));
+            
+            url_argument={};
+            url_argument.dispatch_to_target_object_id=slave_machine_id;
+            url_argument.task_dispatch_manager_password=task_dispatch_manager_password;
+            url_argument.task_type='multiple_task';
+            url_argument.task_code_list=JSON.stringify(encode_task_code_list);
+            
+            result=request_post('http://127.0.0.1/add_task',url_argument);
+            
+            if (undefined!=result.success)
+                return true;
+            
+            return false;
+        }
+        
+        function show_task_dispatch_server_queue(queue_information) {
+            var output_div=document.getElementById('task_queue_information');
+            
+            output_div.innerHTML='Current Wait For Dispatch Task Queue Length :'+queue_information;
+        }
+        
+        function show_slave_machine_list(slave_machine_list) {
+            var output_div=document.getElementById('slave_machine_list');
+            
+            if (slave_machine_list.length) {
+                output_div.innerHTML='';
+                
+                for (var slave_machine_index in slave_machine_list) {
+                    output_div.innerHTML+='Slave Machine :'+slave_machine_list[slave_machine_index].slave_machine_id;
+                    output_div.innerHTML+=' (IP:'+slave_machine_list[slave_machine_index].slave_machine_ip;
+                    output_div.innerHTML+=' Name:'+slave_machine_list[slave_machine_index].slave_machine_name+')';
+                    output_div.innerHTML+=' '+slave_machine_list[slave_machine_index].slave_machine_state+'<br/>';
+                    output_div.innerHTML+='Slave Machine Task Queue Length :'+slave_machine_list[slave_machine_index].slave_machine_task_queue_length+'<br/>';
+                    output_div.innerHTML+='<hr/><br/>'
+                }
+                    
+            } else {
+                output_div.innerHTML='Current Server No Slave Machine ..';
+            }
+        }
+        
+        function add_task() {
+            var task_code=document.getElementById('add_task_code');
+            
+            add_single_task(task_code.value);
+        }
+        
+        function flash_server_data() {
+            show_task_dispatch_server_queue(get_queue_length());
+            show_slave_machine_list(get_slave_machine_list());
+        }
+        
+        setInterval('flash_server_data()',1000);
+        
+             
+    </script>
+    
+    <body>
+        
+        <strong>Current Dispatch Server Information : </strong><br/>
+        
+        <div id="task_queue_information">
+            
+            
+            
+        </div>
+            
+        <br/>
+            
+        <div id="task_server_manager">
+           
+           <nav>
+           
+               <input type="button" value="recover_server" onclick="recovery()" />
+               <input type="button" value="hot_backup_server" onclick="hot_backup()" />
+               <input type="button" value="cold_backup_server" onclick="cold_backup()" />
+               
+           </nav>
+           
+        </div>
+            
+        <br/><br/>
+        
+        <strong>Current Slave Machine List : </strong><br/>
+        
+        <div id="slave_machine_list">
+        
+        </div>
+            
+        <br/><br/>
+        
+        <strong>Add Task: </strong><br/>
+        
+        <div id="add_task">
+            
+            Add Singal Task :<br/>
+                      
+            <input type="submit" onclick="add_task()" />
+            
+            <br/>
+            
+            <textarea id="add_task_code" rows="35" cols="150" name="add_task_code"></textarea>
+            
+        </div>
+        
+        </div>
+        
+    </body>
+
+</html>
+

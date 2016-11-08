@@ -45,9 +45,16 @@
   
   <br/>
   
-  `task_client` 是执行任务的模块,只需要运行这个Python 即可,`task_client.py` 依赖`requests` ,在布置的时候记得需要安装它<br/>
+  `task_client` 是执行任务的模块,只需要运行这个Python 即可,`task_client.py` 依赖`requests` ,在布置的时候记得需要安装它<br/><br/>
 
-  ![using_example](https://raw.githubusercontent.com/lcatro/Distributed-Task-Queue/master/readme_pic/using_example.png)
+  Example -- `task_server.py` 默认测试用例:<br/>
+
+  ![using_example](https://raw.githubusercontent.com/lcatro/Distributed-Task-Queue/master/readme_pic/using_example.png)<br/><br/>
+
+  Example -- 分布式DDOS 例子:<br/>
+
+  ![ddos](https://raw.githubusercontent.com/lcatro/Distributed-Task-Queue/master/readme_pic/ddos.png)<br/><br/>
+
 
 ##Distributed Task Queue 的其他细节
 

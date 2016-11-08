@@ -1,11 +1,11 @@
 
 ##Distributed Task Queue 分布式任务队列框架
 
-  `Distributed Task Queue` 是一个简单的分布式框架,核心原理是**由任务服务器分配代码到各个任务执行的主机**,换句话说也就是**远程代码执行**,只需要在跑任务的机器上布置任务执行模块,无需做更多的操作即可实现分布式任务执行
+  `Distributed Task Queue` 是一个简单的分布式框架,核心原理是**由任务服务器分配代码到各个任务执行的主机**,换句话说也就是**远程代码执行**,只需要在跑任务的机器上布置任务执行模块,无需做更多的操作即可实现分布式任务执行.设计思路来源于工单系统,公司里每员工就像执行任务的主机,一旦公司内部或者外部出现了问题或者需求,那么就需要根据这个点建立一张待处理的工单,然后派发到指定的员工执行,同样地,这个工单对于执行任务的主机来就是由任务调度服务器派发下来的任务,这些任务的主要内容就是即将要执行的代码..
   
 ##How to using Distributed Task Queue 
 
-  `task_server` 是任务派遣服务器,包含有任务调度算法,使用HTTP 协议通信,支持的接口如下:<br/>
+  `task_server` 是任务派遣服务器,包含有任务调度算法,为了方便使用,直接访问`http://127.0.0.1/` 就是管理后台,如果需要自己拓展,它支持的接口如下<br/>
   
   slave machine 登陆接口(**slave_machine_login_password** 登陆密码,**slave_machine_ip** 主机IP ,**slave_machine_name** 主机名)<br/>
   返回值:slave_machine_id 服务器分配主机唯一ID <br/>
@@ -45,7 +45,7 @@
   
   <br/>
   
-  `task_client` 是执行任务的模块,只需要运行这个Python 即可,`task_client.py` 依赖`requests` ,在布置的时候记得需要安装它<br/><br/>
+  `task_client` 是执行任务的模块,只需要运行这个Python 即可,`task_client.py` 依赖`requests` ,需要在布置的时候安装它<br/><br/>
 
   Example -- `task_server.py` 默认测试用例:<br/>
 

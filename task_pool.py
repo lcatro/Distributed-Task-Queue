@@ -167,6 +167,21 @@ class task_queue :
         
         return return_task
     
+    def get_unnecessary_task(self) :
+        return_task=None
+        
+        self.lock.acquire()
+        
+        for task_index in self.task_list :
+            if not task_index['task_is_necessary'] :
+                return_task=task_index
+
+                self.task_list.remove(task_index)
+            
+        self.lock.release()
+        
+        return return_task
+    
     def find_task(self,task_id) :
         return_task=None
         

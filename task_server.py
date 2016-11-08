@@ -1,4 +1,5 @@
 
+import base64
 import json
 import local_database
 import pickle
@@ -74,6 +75,9 @@ class task_slave_machine :
                 
             self.slave_machine_time_tick=time.time()
             self.slave_machine_current_execute_task=None
+        
+    def get_balance_task(self) :
+        return self.slave_machine_task_queue.get_unnecessary_task()
         
     def get_time_tick(self) :
         return self.slave_machine_time_tick
@@ -370,11 +374,10 @@ class task_dispatch :
                     elif first_free_slave_machine.get_task_queue_length()>slave_machine.get_task_queue_length() :
                         first_free_slave_machine=slave_machine
                         
-                if not first_task['task_is_necessary'] :
-                    if 'single_task'==first_task['task_type'] :
-                        first_free_slave_machine.add_task(first_task['task_object'],True)
-                    else :
-                        first_free_slave_machine.add_task(first_task['task_object'],False)
+                if 'single_task'==first_task['task_type'] :
+                    first_free_slave_machine.add_task(first_task['task_object'],True)
+                else :
+                    first_free_slave_machine.add_task(first_task['task_object'],False)
             else :  #  dynamic adjust slave machine's pressure balance
                 first_free_slave_machine_id=None
                 first_busy_slave_machine_id=None
@@ -393,13 +396,12 @@ class task_dispatch :
                         first_busy_slave_machine_id=slave_machine_id_index
                 
                 if not first_free_slave_machine_id==first_busy_slave_machine_id :
-                    balance_task=task_slave_machine_manager.get_slave_machine(first_busy_slave_machine_id).get_task()
+                    balance_task=task_slave_machine_manager.get_slave_machine(first_busy_slave_machine_id).get_balance_task()
                     
-                    if not first_task['task_is_necessary'] :
-                        if 'single_task'==balance_task['task_type'] :
-                            task_slave_machine_manager.get_slave_machine(first_free_slave_machine_id).add_task(balance_task['task_object'],True)
-                        else :
-                            task_slave_machine_manager.get_slave_machine(first_free_slave_machine_id).add_task(balance_task['task_object'],False)
+                    if 'single_task'==balance_task['task_type'] :
+                        task_slave_machine_manager.get_slave_machine(first_free_slave_machine_id).add_task(balance_task['task_object'],True)
+                    else :
+                        task_slave_machine_manager.get_slave_machine(first_free_slave_machine_id).add_task(balance_task['task_object'],False)
         
         task_dispatch.__dispatch_thread_lock.release()
     
@@ -479,9 +481,12 @@ class task_slave_logout_handle(tornado.web.RequestHandler) :
 class task_add_task_handle(tornado.web.RequestHandler) :
     
     def get(self) :
+        self.write('Try to using post ..')
+    
+    def post(self) :
         global TASK_DISPATCH_MANAGER_PASSWORD
         
-        manager_password=self.get_argument('task_dispatch_manager_password')
+        manager_password=self.get_body_argument('task_dispatch_manager_password')
         remote_ip=self.request.remote_ip
         result_json={}
         
@@ -495,7 +500,7 @@ class task_add_task_handle(tornado.web.RequestHandler) :
                 task_dispatch_to_target_object_id=None
             
             if 'single_task'==task_type :
-                task_eval_code=self.get_argument('task_eval_code')
+                task_eval_code=base64.b64decode(self.get_argument('task_eval_code'))
                 
                 task_dispatch.add_task(task_pool.single_task(task_eval_code),True,task_dispatch_to_target_object_id)
             elif 'multiple_task'==task_type :
@@ -506,13 +511,14 @@ class task_add_task_handle(tornado.web.RequestHandler) :
                     
                     if len(task_code_list) :
                         for task_index in task_code_list :
-                            task=task_pool.single_task(task_index['task_eval_code'])
+                            task=task_pool.single_task(base64.b64decode(task_index['task_eval_code']))
 
                             task_code_list.add_task(task_index)
 
                         task_dispatch.add_task(task_list,False,task_dispatch_to_target_object_id)
                 except :
                     pass
+                
             result_json['success']='OK'
         else :
             result_json['error']='None'
@@ -615,6 +621,20 @@ class task_report_handle(tornado.web.RequestHandler) :
     
         self.write(json.dumps(return_json))
     
+class task_web_manager_handle(tornado.web.RequestHandler) :
+    
+    def get(self) :
+        global TASK_DISPATCH_MANAGER_PASSWORD
+        
+        task_manager_html_data=''
+        task_manager_html_file=open('task_manager.html')
+        
+        if task_manager_html_file :
+            task_manager_html_data=task_manager_html_file.read().replace('%task_dispatch_manager_password%',TASK_DISPATCH_MANAGER_PASSWORD)
+            task_manager_html_file.close()
+        
+        self.write(task_manager_html_data)
+        
         
 def test_case_dynamic_add_task() :
     import requests
@@ -648,7 +668,13 @@ def test_case_dynamic_add_task() :
             
             print result.text
         else :
-            requests.get('http://127.0.0.1/add_task?task_dispatch_manager_password=t4sk_s3rv3r_d1sp4tch_m4n4g3r_p4ssw0rd&task_type=single_task&task_eval_code='+input_code)
+            post_argument={
+                'task_dispatch_manager_password':'t4sk_s3rv3r_d1sp4tch_m4n4g3r_p4ssw0rd',
+                'task_type':'single_task',
+                'task_eval_code':base64.b64encode(input_code)
+            }
+            
+            requests.post('http://127.0.0.1/add_task',data=post_argument)
         
 def test_case() :
     task_dispatch.recovery_task_dispatch()
@@ -672,6 +698,7 @@ def test_case() :
         ('/manager',task_manager_handle),
         ('/dispatch',task_dispatch_handle),
         ('/report',task_report_handle),
+        ('/',task_web_manager_handle),
     ]
     http_server=tornado.web.Application(handlers=handler)
 
@@ -682,7 +709,7 @@ def test_case() :
         
 if __name__=='__main__' :
     
-    test_case()
+#    test_case()
     
     task_dispatch.recovery_task_dispatch()
     
@@ -699,6 +726,8 @@ if __name__=='__main__' :
         #  http://127.0.0.1/dispatch?slave_machine_id=
         ('/report',task_report_handle),
         #  http://127.0.0.1/report?slave_machine_id=&slave_machine_execute_task_id=&slave_machine_report=
+        ('/',task_web_manager_handle),
+        #  http://127.0.0.1/
     ]
     http_server=tornado.web.Application(handlers=handler)
     

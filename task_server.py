@@ -34,6 +34,7 @@ class task_slave_machine :
         self.slave_machine_is_server_maintenance=False
         self.slave_machine_current_execute_task=None
         self.slave_machine_task_queue=task_pool.task_queue()
+        self.slave_machine_information=local_database.key_value()
         
     def get_slave_machine_ip(self) :
         return self.slave_machine_ip
@@ -108,6 +109,15 @@ class task_slave_machine :
             return_task_list.append(self.slave_machine_task_queue.get_task())
             
         return return_task_list
+    
+    def set_information(self,information_key,information_value) :
+        self.slave_machine_information.set_key(information_key,information_value)
+        
+    def get_information(self,information_key) :
+        return self.slave_machine_information.get_key(information_key)
+        
+    def get_information_key_list(self) :
+        return self.slave_machine_information.list_key()
     
     
 class task_slave_machine_manager :
@@ -194,6 +204,47 @@ class task_slave_machine_manager :
         return return_slave_machine
     
     @staticmethod
+    def get_slave_machine_information(slave_machine_id,information_key) :
+        return_value=None
+        
+        task_slave_machine_manager.__slave_thread_lock.acquire()
+        
+        try :
+            return_value=task_slave_machine_manager.__slave_machine_list[slave_machine_id].get_information(information_key)
+        except :
+            pass
+        
+        task_slave_machine_manager.__slave_thread_lock.release()
+        
+        return return_value
+    
+    @staticmethod
+    def get_slave_machine_information_key_list(slave_machine_id) :
+        return_value=None
+        
+        task_slave_machine_manager.__slave_thread_lock.acquire()
+        
+        try :
+            return_value=task_slave_machine_manager.__slave_machine_list[slave_machine_id].get_information_key_list()
+        except :
+            pass
+        
+        task_slave_machine_manager.__slave_thread_lock.release()
+        
+        return return_value
+    
+    @staticmethod
+    def set_slave_machine_information(slave_machine_id,information_key,information_value) :
+        task_slave_machine_manager.__slave_thread_lock.acquire()
+        
+        try :
+            task_slave_machine_manager.__slave_machine_list[slave_machine_id].set_information(information_key,information_value)
+        except :
+            pass
+        
+        task_slave_machine_manager.__slave_thread_lock.release()
+    
+    @staticmethod
     def get_slave_machine_list() :
         return_slave_machine_list=[]
         
@@ -262,11 +313,13 @@ class task_slave_machine_manager :
 class task_dispatch :
     
     __TASK_DISPATCH__='task_dispatch'
+    __TASK_DISPATCH_DISPATCH_INIT_TASK_QUEUE__='task_init_dispatch_queue'
     __TASK_DISPATCH_DISPATCH_TASK_QUEUE__='task_dispatch_queue'
     __TASK_DISPATCH_HISTORY_DISPATCH_TASK_QUEUE__='task_history_dispatch_queue'
     __TASK_DISPATCH_SLAVE_MACHINE_LIST__='task_slave_machine_list'
     __TASK_DISPATCH_TIME_WAIT_FOR_SLAVE_MACHINE_ENTER_SERVER_MAINTENANCE__=5
     
+    __dispatch_init_task_queue=task_pool.task_queue()
     __dispatch_task_queue=task_pool.task_queue()
     __history_dispatch_task_queue=task_pool.task_queue()
     __dispatch_thread_lock=thread.allocate_lock()
@@ -277,6 +330,7 @@ class task_dispatch :
         
         task_dispatch_database=local_database.database.create_new_database(task_dispatch.__TASK_DISPATCH__)
         
+        task_dispatch_database.get_key_set().set_key(task_dispatch.__TASK_DISPATCH_DISPATCH_INIT_TASK_QUEUE__,task_pool.task_queue().serialize())
         task_dispatch_database.get_key_set().set_key(task_dispatch.__TASK_DISPATCH_DISPATCH_TASK_QUEUE__,task_pool.task_queue().serialize())
         task_dispatch_database.get_key_set().set_key(task_dispatch.__TASK_DISPATCH_HISTORY_DISPATCH_TASK_QUEUE__,task_pool.task_queue().serialize())
         task_dispatch_database.get_key_set().set_key(task_dispatch.__TASK_DISPATCH_SLAVE_MACHINE_LIST__,pickle.dumps({}))  #  serialize a empty dict ..
@@ -295,6 +349,7 @@ class task_dispatch :
             task_dispatch_database=local_database.database(task_dispatch.__TASK_DISPATCH__)
             
             task_dispatch.__dispatch_thread_lock.acquire()
+            task_dispatch.__dispatch_init_task_queue.deserialize(task_dispatch_database.get_key_set().get_key(task_dispatch.__TASK_DISPATCH_DISPATCH_INIT_TASK_QUEUE__))
             task_dispatch.__dispatch_task_queue.deserialize(task_dispatch_database.get_key_set().get_key(task_dispatch.__TASK_DISPATCH_DISPATCH_TASK_QUEUE__))
             task_dispatch.__history_dispatch_task_queue.deserialize(task_dispatch_database.get_key_set().get_key(task_dispatch.__TASK_DISPATCH_HISTORY_DISPATCH_TASK_QUEUE__))
             task_slave_machine_manager.deserialize(task_dispatch_database.get_key_set().get_key(task_dispatch.__TASK_DISPATCH_SLAVE_MACHINE_LIST__))
@@ -320,10 +375,10 @@ class task_dispatch :
             task_dispatch_database=task_dispatch.__create_new_task_dispatch_pool_database()
             
         task_dispatch.__dispatch_thread_lock.acquire()
+        task_dispatch_database.get_key_set().set_key(task_dispatch.__TASK_DISPATCH_DISPATCH_INIT_TASK_QUEUE__,task_dispatch.__dispatch_init_task_queue.serialize())
         task_dispatch_database.get_key_set().set_key(task_dispatch.__TASK_DISPATCH_DISPATCH_TASK_QUEUE__,task_dispatch.__dispatch_task_queue.serialize())
         task_dispatch_database.get_key_set().set_key(task_dispatch.__TASK_DISPATCH_HISTORY_DISPATCH_TASK_QUEUE__,task_dispatch.__history_dispatch_task_queue.serialize())
         task_dispatch_database.get_key_set().set_key(task_dispatch.__TASK_DISPATCH_SLAVE_MACHINE_LIST__,task_slave_machine_manager.serialize())
-        
         task_dispatch_database.save_database()
         task_dispatch.__dispatch_thread_lock.release()
     
@@ -406,6 +461,32 @@ class task_dispatch :
         task_dispatch.__dispatch_thread_lock.release()
     
     @staticmethod
+    def dispatch_init_task(slave_machine_id) :
+        slave_machine=task_slave_machine_manager.get_slave_machine(slave_machine_id)
+        task_dispatch_init_task_list=task_dispatch.__dispatch_init_task_queue.clone()
+        
+        if task_dispatch_init_task_list.get_current_queue_length() :
+            while task_dispatch_init_task_list.get_current_queue_length() :
+                task_dispatch_init_task_index=task_dispatch_init_task_list.get_task()
+                task_dispatch_init_task_index_task_object=task_dispatch_init_task_index['task_object']
+                task_dispatch_init_task_index_task_is_necessary=task_dispatch_init_task_index['task_is_necessary']
+                
+                if 'single_task'==task_dispatch_init_task_index['task_type'] :
+                    if task_dispatch_init_task_index_task_is_necessary :
+                        task_dispatch.add_task(task_dispatch_init_task_index_task_object,True,slave_machine_id)
+                    else :
+                        task_dispatch.add_task(task_dispatch_init_task_index_task_object,True)
+                else :
+                    if task_dispatch_init_task_index_task_is_necessary :
+                        task_dispatch.add_task(task_dispatch_init_task_index_task_object,False,slave_machine_id)
+                    else :
+                        task_dispatch.add_task(task_dispatch_init_task_index_task_object,False)
+                
+            return True
+        
+        return False
+    
+    @staticmethod
     def submit_result(task_id,task_result) :
         task_dispatch.__dispatch_thread_lock.acquire()
         
@@ -438,6 +519,22 @@ class task_dispatch :
         task_dispatch.__dispatch_thread_lock.release()
         task_dispatch.dispatch()
 
+    @staticmethod
+    def add_init_task(task,is_single_task) :
+        task_dispatch.__dispatch_init_task_queue.add_task(task,is_single_task,True)
+        
+    @staticmethod
+    def get_init_task_list() :
+        return task_dispatch.__dispatch_init_task_queue.get_task_id_list()
+    
+    @staticmethod
+    def get_init_task(task_id) :
+        return task_dispatch.__dispatch_init_task_queue.find_task(task_id)
+        
+    @staticmethod
+    def delete_init_task(task_id) :
+        return task_dispatch.__dispatch_init_task_queue.delete_task(task_id)
+        
             
 class task_slave_login_handle(tornado.web.RequestHandler) :
     
@@ -449,7 +546,8 @@ class task_slave_login_handle(tornado.web.RequestHandler) :
         return_json={}
     
         if not None==slave_machine_id :
-            task_dispatch.dispatch()
+            if not task_dispatch.dispatch_init_task(slave_machine_id) :
+                task_dispatch.dispatch()
             
             return_json['slave_machine_id']=slave_machine_id
         else :
@@ -516,6 +614,29 @@ class task_add_task_handle(tornado.web.RequestHandler) :
                             task_code_list.add_task(task_index)
 
                         task_dispatch.add_task(task_list,False,task_dispatch_to_target_object_id)
+                    else :
+                        result_json['error']='None'
+                except :
+                    pass
+            elif 'init_single_task'==task_type :
+                task_eval_code=base64.b64decode(self.get_argument('task_eval_code'))
+                
+                task_dispatch.add_init_task(task_pool.single_task(task_eval_code),True)
+            elif 'init_multiple_task'==task_type :
+                try :
+                    task_code_list_json=self.get_argument('task_code_list')
+                    task_code_list=json.loads(task_code_list_json)
+                    task_list=task_pool.multiple_task()
+                    
+                    if len(task_code_list) :
+                        for task_index in task_code_list :
+                            task=task_pool.single_task(base64.b64decode(task_index['task_eval_code']))
+
+                            task_code_list.add_task(task_index)
+
+                        task_dispatch.add_init_task(task_list,False)
+                    else :
+                        result_json['error']='None'
                 except :
                     pass
                 
@@ -571,6 +692,9 @@ class task_manager_handle(tornado.web.RequestHandler) :
                     slave_machine_information['slave_machine_state']=slave_machine_object.get_slave_machine_state()
                     slave_machine_information['slave_machine_task_queue_length']=slave_machine_object.get_task_queue_length()
                     
+                    for slave_machine_information_key_index in task_slave_machine_manager.get_slave_machine_information_key_list(slave_machine_index) :
+                        slave_machine_information[slave_machine_information_key_index]=task_slave_machine_manager.get_slave_machine_information(slave_machine_index,slave_machine_information_key_index)
+                    
                     slave_machine_list.append(slave_machine_information)
                     
                 result_json['slave_machine_list']=slave_machine_list
@@ -602,22 +726,35 @@ class task_report_handle(tornado.web.RequestHandler) :
     
     def get(self) :
         slave_machine_id=self.get_argument('slave_machine_id')
-        slave_machine_execute_task_id=self.get_argument('slave_machine_execute_task_id')
         slave_machine_report=self.get_argument('slave_machine_report')
-            
+        slave_machine_execute_task_id=None
         return_json={}
     
-        if not None==slave_machine_id and not None==slave_machine_execute_task_id and not None==slave_machine_report :
-            slave_machine=task_slave_machine_manager.get_slave_machine(slave_machine_id)
+        try :
+            slave_machine_execute_task_id=self.get_argument('slave_machine_execute_task_id')
+        except :
+            slave_machine_execute_task_id=None
+    
+        if not None==slave_machine_id and not None==slave_machine_report :
+            slave_machine_report=json.loads(slave_machine_report)
             
-            if not None==slave_machine :
-                if task_slave_machine.task_slave_machine_state.running_task==slave_machine.get_slave_machine_state() and \
-                    slave_machine.get_current_execute_task_id()==slave_machine_execute_task_id :
-                    slave_machine.finish_task()
-                    task_dispatch.submit_result(slave_machine_execute_task_id,slave_machine_report)
-                    task_dispatch.dispatch()
-                    
-                    return_json['success']=slave_machine_execute_task_id
+            if not None==slave_machine_execute_task_id :
+                slave_machine=task_slave_machine_manager.get_slave_machine(slave_machine_id)
+
+                if not None==slave_machine :
+                    if task_slave_machine.task_slave_machine_state.running_task==slave_machine.get_slave_machine_state() and \
+                        slave_machine.get_current_execute_task_id()==slave_machine_execute_task_id :
+                        slave_machine.finish_task()
+                        task_dispatch.submit_result(slave_machine_execute_task_id,slave_machine_report)
+                        task_dispatch.dispatch()
+
+                        return_json['success']=slave_machine_execute_task_id
+            else :
+                try :
+                    for key_index in slave_machine_report.keys() :
+                        task_slave_machine_manager.set_slave_machine_information(slave_machine_id,key_index,slave_machine_report[key_index])
+                except :
+                    pass
     
         self.write(json.dumps(return_json))
     

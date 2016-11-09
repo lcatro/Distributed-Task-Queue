@@ -1,7 +1,9 @@
 
 import json
+import psutil
 import random
 import requests
+import thread
 import time
 
 
@@ -11,6 +13,7 @@ DISPATCH_TASK_DELAY_TIME=2
 class task_slave :
     
     __slave_machine_id=None
+    __slave_machine_running=False
     
     @staticmethod
     def login(login_password,local_ip,local_machine_name) :
@@ -21,7 +24,10 @@ class task_slave :
 
             if login_result.has_key('slave_machine_id') :
                 task_slave.__slave_machine_id=login_result['slave_machine_id']
-                
+                task_slave.__slave_machine_running=True
+
+                thread.start_new_thread(task_slave.__performance_report_thread,())
+
                 print 'Login Slave ID :'+task_slave.__slave_machine_id
 
                 return True
@@ -88,8 +94,8 @@ class task_slave :
     def report(report_object) :
         report_json_string=json.dumps(report_object)
         task_id=report_object['task_id']
-        dispatch_url='http://127.0.0.1/report?slave_machine_id='+task_slave.__slave_machine_id+'&slave_machine_execute_task_id='+task_id+'&slave_machine_report='+report_json_string
-        report=requests.get(dispatch_url)
+        report_url='http://127.0.0.1/report?slave_machine_id='+task_slave.__slave_machine_id+'&slave_machine_execute_task_id='+task_id+'&slave_machine_report='+report_json_string
+        report=requests.get(report_url)
         report_result=json.loads(report.text)
     
         return report_result
@@ -98,12 +104,38 @@ class task_slave :
     def logout() :
         try :
             if not None==task_slave.__slave_machine_id :
+                task_slave.__slave_machine_running=False
                 logout_url='http://127.0.0.1/logout?slave_machine_id='+task_slave.__slave_machine_id
                 logout=requests.get(logout_url)
                 logout_result=json.loads(logout.text)
         except :
             pass
     
+    @staticmethod
+    def __performance_report_thread() :
+        while task_slave.__slave_machine_running :
+            performance_report_object={}
+            performance_report_object['slave_machine_cpu_rate']=task_slave.__get_cpu_rate()
+            performance_report_object['slave_machine_memory_rate']=task_slave.__get_memory_rate()
+            report_url='http://127.0.0.1/report?slave_machine_id='+task_slave.__slave_machine_id+'&slave_machine_report='+json.dumps(performance_report_object)
+            report=requests.get(report_url)
+            
+            time.sleep(1)
+
+    @staticmethod
+    def __get_cpu_rate() :
+        cpu_data_list=psutil.cpu_percent(interval=5,percpu=True)
+        cpu_rate=0.0
+        for cpu_data_index in cpu_data_list :
+            cpu_rate+=cpu_data_index
+        cpu_rate/=psutil.cpu_count()
+        return cpu_rate
+
+    @staticmethod
+    def __get_memory_rate() :
+        memory_data=psutil.virtual_memory()
+        return memory_data.percent
+
     
 if __name__=='__main__' :
     

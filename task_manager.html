@@ -117,6 +117,20 @@
             return false;
         }
         
+        function add_init_single_task(task_code) {  //  add a single task ..
+            url_argument={};
+            url_argument.task_dispatch_manager_password=task_dispatch_manager_password;
+            url_argument.task_type='init_single_task';
+            url_argument.task_eval_code=base64_encode(task_code);
+            
+            result=request_post('http://127.0.0.1/add_task',url_argument);
+            
+            if (undefined!=result.success)
+                return true;
+            
+            return false;
+        }
+        
         function add_single_task(task_code) {  //  add a single task ..
             url_argument={};
             url_argument.task_dispatch_manager_password=task_dispatch_manager_password;
@@ -203,6 +217,8 @@
                     output_div.innerHTML+=' Name:'+slave_machine_list[slave_machine_index].slave_machine_name+')';
                     output_div.innerHTML+=' '+slave_machine_list[slave_machine_index].slave_machine_state+'<br/>';
                     output_div.innerHTML+='Slave Machine Task Queue Length :'+slave_machine_list[slave_machine_index].slave_machine_task_queue_length+'<br/>';
+                    output_div.innerHTML+='Slave Machine CPU Rate :'+slave_machine_list[slave_machine_index].slave_machine_cpu_rate+'%';
+                    output_div.innerHTML+=' Slave Machine Memory Rate :'+slave_machine_list[slave_machine_index].slave_machine_memory_rate+'%<br/>';
                     output_div.innerHTML+='<hr/><br/>'
                 }
                     
@@ -211,10 +227,32 @@
             }
         }
         
-        function add_task() {
-            var task_code=document.getElementById('add_task_code');
+        function add_singal_task() {
+            var task_code=document.getElementById('add_singal_task_code');
             
             add_single_task(task_code.value);
+        }
+        
+        function add_init_singal_task() {
+            var task_code=document.getElementById('add_init_singal_task_code');
+            
+            add_init_single_task(task_code.value);
+        }
+        
+        function select_add_singal_task() {
+            var add_init_task=document.getElementById('add_singal_task');
+            var add_init_singal_task=document.getElementById('add_init_singal_task');
+            
+            add_init_task.style.display='block';
+            add_init_singal_task.style.display='none';
+        }
+        
+        function select_add_init_singal_task() {
+            var add_init_task=document.getElementById('add_singal_task');
+            var add_init_singal_task=document.getElementById('add_init_singal_task');
+            
+            add_init_task.style.display='none';
+            add_init_singal_task.style.display='block';
         }
         
         function flash_server_data() {
@@ -232,8 +270,6 @@
         <strong>Current Dispatch Server Information : </strong><br/>
         
         <div id="task_queue_information">
-            
-            
             
         </div>
             
@@ -265,13 +301,38 @@
         
         <div id="add_task">
             
-            Add Singal Task :<br/>
-                      
-            <input type="submit" onclick="add_task()" />
+            <nav>
+                
+                <input type="button" value="add singal task" onclick="select_add_singal_task()"/>
+                <input type="button" value="add multiple task" onclick=""/>
+                <input type="button" value="add init singal task" onclick="select_add_init_singal_task()"/>
+                <input type="button" value="add init multiple task" onclick=""/>
+                
+            </nav>
             
-            <br/>
+            <div id="add_singal_task">
+
+                Add Singal Task :<br/>
+
+                Input execute Python Code :  <input type="submit" onclick="add_singal_task()" />
+
+                <br/>
+
+                <textarea id="add_singal_task_code" rows="35" cols="150"></textarea>
+
+            </div>
             
-            <textarea id="add_task_code" rows="35" cols="150" name="add_task_code"></textarea>
+            <div id="add_init_singal_task" style="display:none">
+
+                Add Init Singal Task :<br/>
+
+                Input execute Python Code :  <input type="submit" onclick="add_init_singal_task()" />
+
+                <br/>
+
+                <textarea id="add_init_singal_task_code" rows="35" cols="150"></textarea>
+
+            </div>
             
         </div>
         

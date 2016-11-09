@@ -1,4 +1,5 @@
 
+import copy
 import json
 import local_database
 import pickle
@@ -94,6 +95,14 @@ class multiple_task :
     def get_task_id(self) :
         return self.task_id
     
+    def get_task_id_list(self) :
+        return_list=[]
+        
+        for single_task_index in self.single_task_list :
+            return_list.append(single_task_index.get_task_id())
+        
+        return return_list
+    
     def python_serialize(self) :
         return pickle.dumps(self)
     
@@ -182,6 +191,22 @@ class task_queue :
         
         return return_task
     
+    def get_task_id_list(self) :
+        self.lock.acquire()
+        
+        task_id_list=[]
+        
+        for task_index in self.task_list :
+            if 'single_task'==task_index['task_type'] :
+                task_index.append(task_index['task_object'].get_task_id())
+            elif 'multiple_task'==task_index['task_type'] :
+                task_index.append(task_index['task_object'].get_task_id())
+                task_index+=task_index['task_object'].get_task_id_list()
+        
+        self.lock.release()
+        
+        return task_index
+    
     def find_task(self,task_id) :
         return_task=None
         
@@ -232,6 +257,22 @@ class task_queue :
                     break
         
         self.lock.release()
+        
+    def clone(self) :
+        self.lock.acquire()
+        
+        deep_copy_task_list=copy.deepcopy(self.task_list)
+        new_task_queue=task_queue()
+        
+        for deep_copy_task_index in deep_copy_task_list :
+            if 'single_task'==deep_copy_task_index['task_type'] :
+                new_task_queue.add_task(deep_copy_task_index['task_object'],True,deep_copy_task_index['task_is_necessary'])
+            else :
+                new_task_queue.add_task(deep_copy_task_index['task_object'],False,deep_copy_task_index['task_is_necessary'])
+        
+        self.lock.release()
+        
+        return new_task_queue
         
     def get_current_queue_length(self) :
         self.lock.acquire()

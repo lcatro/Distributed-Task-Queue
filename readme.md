@@ -5,29 +5,66 @@
   
 ##How to using Distributed Task Queue 
 
-  `task_server` 是任务派遣服务器,包含有任务调度算法,为了方便使用,直接访问`http://127.0.0.1/` 就是管理后台,如果需要自己拓展,它支持的接口如下<br/>
+  `task_server` 是任务派遣服务器,包含有任务调度算法,为了方便使用,直接访问`http://127.0.0.1/` 是任务服务器的管理后台(包括接口支持的所有功能),如果需要自己拓展,服务器提供的接口如下:<br/>
   
-  slave machine 登陆接口(**slave_machine_login_password** 登陆密码,**slave_machine_ip** 主机IP ,**slave_machine_name** 主机名)<br/>
+---
+
+  slave machine 登陆接口<br/>
+  参数:**slave_machine_login_password** 登陆密码,**slave_machine_ip** 主机IP ,**slave_machine_name** 主机名<br/>
   返回值:slave_machine_id 服务器分配主机唯一ID <br/>
-    http://127.0.0.1/login?slave_machine_login_password=&slave_machine_ip=&slave_machine_name=
+  URL  http://127.0.0.1/login?slave_machine_login_password=&slave_machine_ip=&slave_machine_name=<br/>
   
-  slave machine 退出接口(**slave_machine_id** 服务器分配主机唯一ID )<br/>
+---
+  
+  slave machine 退出接口<br/>
+  参数:**slave_machine_id** 服务器分配主机唯一ID <br/>
   返回值:success 或者error <br/>
   `TIPS : 退出之后任务系统会重新调度任务列表`<br/>
-    http://127.0.0.1/logout?slave_machine_id=
+  URL  http://127.0.0.1/logout?slave_machine_id=<br/>
   
-  slave machine 任务领取接口(**slave_machine_id** 服务器分配主机唯一ID )<br/>
+---
+
+  slave machine 任务领取接口<br/>
+  参数:**slave_machine_id** 服务器分配主机唯一ID <br/>
   返回值:任务详细信息<br/>
-    http://127.0.0.1/dispatch?slave_machine_id=
+  URL  http://127.0.0.1/dispatch?slave_machine_id=<br/>
   
-  slave machine 任务报告接口(**slave_machine_id** 服务器分配主机唯一ID ,**slave_machine_execute_task_id** 任务ID ,**slave_machine_report** 详细报告信息)<br/>
+---
+  
+  slave machine 任务报告接口<br/>
+  参数:**slave_machine_id** 服务器分配主机唯一ID ,**slave_machine_execute_task_id** 任务ID ,**slave_machine_report** 详细报告信息<br/>
   返回值:success 或者error <br/>
-    http://127.0.0.1/report?slave_machine_id=&slave_machine_execute_task_id=&slave_machine_report=
+  URL  http://127.0.0.1/report?slave_machine_id=&slave_machine_execute_task_id=&slave_machine_report=<br/>
     
-  task dispatch server 管理接口(**task_dispatch_manager_password** 管理密码,**manager_operate_type** 管理命令,**manager_operate_argument** 管理命令参数列表)<br/>
+---
+  
+  slave machine 性能报告接口<br/>
+  参数:**slave_machine_id** 服务器分配主机唯一ID ,**slave_machine_report** 主机性能参数列表<br/>
+  返回值:success 或者error <br/>
+  URL  http://127.0.0.1/report?slave_machine_id=&slave_machine_report=<br/>
+    
+---
+  
+  slave machine 模块更新接口<br/>
+  参数:**slave_machine_id** 服务器分配主机唯一ID <br/>
+  返回值:可更新模块列表 <br/>
+  URL  http://127.0.0.1/update?slave_machine_id=<br/>
+  
+  <br/><br/>
+  
+  参数:**slave_machine_id** 服务器分配主机唯一ID ,**module_name** 模块名<br/>
+  返回值:模块文件列表和代码 <br/>
+  URL  http://127.0.0.1/update?slave_machine_id=&module_name=<br/>
+    
+  `TIPS : 任务服务器支持更新模块在module 文件夹下,每个模块的代码使用独立的文件夹来管理`
+    
+---
+
+  task dispatch server 管理接口<br/>
+  参数:**task_dispatch_manager_password** 管理密码,**manager_operate_type** 管理命令,**manager_operate_argument** 管理命令参数列表<br/>
   返回值:详细信息<br/>
   `TIPS : 限制在本地主机IP 管理`<br/>
-    http://127.0.0.1/manager?task_dispatch_manager_password=&manager_operate_type=recovery&manager_operate_argument=
+  URL  http://127.0.0.1/manager?task_dispatch_manager_password=&manager_operate_type=recovery&manager_operate_argument=<br/>
     
     manager_operate_type 支持命令:
     recovery                恢复task dispatch 服务器环境
@@ -36,24 +73,52 @@
     queue                   查看当前任务队列信息
     slave_machine_list      查看slave machine 列表
     
-  task dispatch server 添加单任务接口(**task_dispatch_manager_password** 管理密码,**task_type** 任务类型,**task_eval_code** 任务代码)<br/>
+---
+
+  task dispatch server 添加任务接口<br/>
+  参数:**task_dispatch_manager_password** 管理密码,**task_type** 任务类型,**task_eval_code** 任务代码<br/>
   返回值:success 或者error<br/>
   `TIPS : 限制在本地主机IP 管理`<br/>
-    http://127.0.0.1/add_task?task_dispatch_manager_password=&task_type=&task_eval_code=
+  
+    task_type 任务类型支持初始化任务和普通任务的处理,传递参数的值如下:
+    init_single_task    添加初始化单任务
+    init_multiple_task  添加初始化多任务
+    single_task         添加初普通单任务
+    multiple_task       添加初普通多任务
+  
+    TIPS : 初始化任务的意义为,当新的slave machine 登陆到服务器时先要执行的任务;普通任务的意义为,由服务器自动分配到slave machine 执行的任务
+  
+  URL  http://127.0.0.1/add_task?task_dispatch_manager_password=&task_type=&task_eval_code=<br/>
   
   关于服务器相关的接口使用例子保存在`task_server.py test_case()` ,客户端相关的接口使用例子保存在`task_client.py task_slave` 类
   
-  <br/>
+  <br/><br/>
   
   `task_client` 是执行任务的模块,只需要运行这个Python 即可,`task_client.py` 依赖`requests` ,需要在布置的时候安装它<br/><br/>
+
 
   Example -- `task_server.py` 默认测试用例:<br/>
 
   ![using_example](https://raw.githubusercontent.com/lcatro/Distributed-Task-Queue/master/readme_pic/using_example.png)<br/><br/>
 
+
   Example -- 分布式DDOS 例子:<br/>
 
+  Python 代码:
+  
+    for index in range(50) :
+        print 'Request Index :'+str(index),requests.get('http://www.qq.com/')
+
   ![ddos](https://raw.githubusercontent.com/lcatro/Distributed-Task-Queue/master/readme_pic/ddos.png)<br/><br/>
+
+
+  Example -- 更新模块例子:<br/>
+
+  Python 代码(TIPS : 建议作为初始化任务执行,让新的slave machine 先更新模块再执行任务):
+
+    print task_slave.get_update_module_list()
+    
+    task_slave.update('test_update_module')
 
 
 ##Distributed Task Queue 的其他细节

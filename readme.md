@@ -11,14 +11,14 @@
 
   slave machine 登陆接口<br/>
   参数:**slave_machine_login_password** 登陆密码,**slave_machine_ip** 主机IP ,**slave_machine_name** 主机名<br/>
-  返回值:slave_machine_id 服务器分配主机唯一ID <br/>
+  返回值:**slave_machine_id** 服务器分配主机唯一ID <br/>
   URL  http://127.0.0.1/login?slave_machine_login_password=&slave_machine_ip=&slave_machine_name=<br/>
   
 ---
   
   slave machine 退出接口<br/>
   参数:**slave_machine_id** 服务器分配主机唯一ID <br/>
-  返回值:success 或者error <br/>
+  返回值:**success** 或者**error** <br/>
   `TIPS : 退出之后任务系统会重新调度任务列表`<br/>
   URL  http://127.0.0.1/logout?slave_machine_id=<br/>
   
@@ -26,43 +26,43 @@
 
   slave machine 任务领取接口<br/>
   参数:**slave_machine_id** 服务器分配主机唯一ID <br/>
-  返回值:任务详细信息<br/>
+  返回值:**任务详细信息**<br/>
   URL  http://127.0.0.1/dispatch?slave_machine_id=<br/>
   
 ---
   
   slave machine 任务报告接口<br/>
   参数:**slave_machine_id** 服务器分配主机唯一ID ,**slave_machine_execute_task_id** 任务ID ,**slave_machine_report** 详细报告信息<br/>
-  返回值:success 或者error <br/>
+  返回值:**success** 或者**error** <br/>
   URL  http://127.0.0.1/report?slave_machine_id=&slave_machine_execute_task_id=&slave_machine_report=<br/>
     
 ---
   
   slave machine 性能报告接口<br/>
   参数:**slave_machine_id** 服务器分配主机唯一ID ,**slave_machine_report** 主机性能参数列表<br/>
-  返回值:success 或者error <br/>
+  返回值:**success** 或者**error** <br/>
   URL  http://127.0.0.1/report?slave_machine_id=&slave_machine_report=<br/>
     
 ---
   
   slave machine 模块更新接口<br/>
   参数:**slave_machine_id** 服务器分配主机唯一ID <br/>
-  返回值:可更新模块列表 <br/>
+  返回值:**可更新模块列表** <br/>
   URL  http://127.0.0.1/update?slave_machine_id=<br/>
   
-  <br/><br/>
+  <br/>
   
   参数:**slave_machine_id** 服务器分配主机唯一ID ,**module_name** 模块名<br/>
-  返回值:模块文件列表和代码 <br/>
+  返回值:**模块文件列表和代码** <br/>
   URL  http://127.0.0.1/update?slave_machine_id=&module_name=<br/>
     
-  `TIPS : 任务服务器支持更新模块在module 文件夹下,每个模块的代码使用独立的文件夹来管理`
+  `TIPS : 任务服务器支持更新模块在module 文件夹下,每个模块的代码使用独立的文件夹来管理,参考module 目录中的test_update_module 模块`
     
 ---
 
   task dispatch server 管理接口<br/>
   参数:**task_dispatch_manager_password** 管理密码,**manager_operate_type** 管理命令,**manager_operate_argument** 管理命令参数列表<br/>
-  返回值:详细信息<br/>
+  返回值:**详细信息**<br/>
   `TIPS : 限制在本地主机IP 管理`<br/>
   URL  http://127.0.0.1/manager?task_dispatch_manager_password=&manager_operate_type=recovery&manager_operate_argument=<br/>
     
@@ -77,7 +77,7 @@
 
   task dispatch server 添加任务接口<br/>
   参数:**task_dispatch_manager_password** 管理密码,**task_type** 任务类型,**task_eval_code** 任务代码<br/>
-  返回值:success 或者error<br/>
+  返回值:**success** 或者**error**<br/>
   `TIPS : 限制在本地主机IP 管理`<br/>
   
     task_type 任务类型支持初始化任务和普通任务的处理,传递参数的值如下:

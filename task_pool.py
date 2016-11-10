@@ -303,9 +303,13 @@ class task_queue :
         
 class task_pool :
     
-    def __init__(self) :
+    def __init__(self,init_create_queue_list=[]) :
         self.task_queue_list={}
         self.lock=thread.allocate_lock()
+        
+        for init_create_queue_index in init_create_queue_list :
+            if not None==init_create_queue_index :
+                self.create_queue(init_create_queue_index)
     
     def create_queue(self,task_queue_name) :
         self.lock.acquire()
@@ -337,21 +341,37 @@ class task_pool :
         self.lock.release()
         
         return return_current_queue_count
+
+    def get_queue_name_list(self) :
+        self.lock.acquire()
+        
+        return_queue_name_list=[]
+        
+        for queue_name_index in self.task_queue_list.keys() :
+            return_queue_name_list.append(queue_name_index)
+
+        self.lock.release()
+        
+        return return_queue_name_list
     
     def serialize(self) :
         return pickle.dumps(self.task_queue_list)
     
     def deserialize(self,input_serialize_string) :
+        self.lock.acquire()
+        
         self.backup_task_queue_list=self.task_queue_list
+        return_result=False
         
         try :
             self.task_queue_list=pickle.loads(input_serialize_string)
-            
-            return True
+            return_result=True
         except :
             self.task_queue_list=self.backup_task_queue_list
             
-            return False
+        self.lock.release()
+        
+        return return_result
         
     
 if __name__=='__main__' :  #  test case

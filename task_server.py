@@ -471,18 +471,11 @@ class task_dispatch :
             while task_dispatch_init_task_list.get_current_queue_length() :
                 task_dispatch_init_task_index=task_dispatch_init_task_list.get_task()
                 task_dispatch_init_task_index_task_object=task_dispatch_init_task_index['task_object']
-                task_dispatch_init_task_index_task_is_necessary=task_dispatch_init_task_index['task_is_necessary']
                 
                 if 'single_task'==task_dispatch_init_task_index['task_type'] :
-                    if task_dispatch_init_task_index_task_is_necessary :
-                        task_dispatch.add_task(task_dispatch_init_task_index_task_object,True,slave_machine_id)
-                    else :
-                        task_dispatch.add_task(task_dispatch_init_task_index_task_object,True)
+                    task_dispatch.add_task(task_dispatch_init_task_index_task_object,True,slave_machine_id)
                 else :
-                    if task_dispatch_init_task_index_task_is_necessary :
-                        task_dispatch.add_task(task_dispatch_init_task_index_task_object,False,slave_machine_id)
-                    else :
-                        task_dispatch.add_task(task_dispatch_init_task_index_task_object,False)
+                    task_dispatch.add_task(task_dispatch_init_task_index_task_object,False,slave_machine_id)
                 
             return True
         

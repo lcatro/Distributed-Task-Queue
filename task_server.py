@@ -2,7 +2,9 @@
 import base64
 import json
 import local_database
+import os
 import pickle
+import sys
 import task_pool
 import thread
 import time
@@ -758,6 +760,104 @@ class task_report_handle(tornado.web.RequestHandler) :
     
         self.write(json.dumps(return_json))
     
+    
+class task_update_handle(tornado.web.RequestHandler) :
+    
+    @staticmethod
+    def get_module_path() :
+        current_file_name=sys.argv[0]
+        current_path=current_file_name[:current_file_name.rfind('\\')+1]+'module\\'
+
+        return current_path
+    
+    @staticmethod
+    def get_relative_path(file_path) :
+        try :
+            current_file_path=task_update_handle.get_module_path()
+
+            return file_path.replace(current_file_path,'')
+        except :
+            return None
+
+    @staticmethod
+    def list_dir_file(file_path) :
+        output_file_list=[]
+        
+        for dir_path,dir_name,file_name in os.walk(file_path) :
+            for file_name_index in file_name :
+                output_file_list.append(dir_path+'\\'+file_name_index)
+
+        return output_file_list
+    
+    @staticmethod
+    def list_dir_dir(file_path) :
+        output_file_list=[]
+        
+        for dir_path,dir_name,file_name in os.walk(file_path) :
+            sub_dir_name=dir_path.replace(task_update_handle.get_module_path(),'')
+
+            if -1==sub_dir_name.find('\\') and len(sub_dir_name.replace(' ','')) :
+                output_file_list.append(sub_dir_name)
+
+        return output_file_list
+    
+    @staticmethod
+    def read_file(file_path) :
+        file_handle=open(file_path)
+        
+        if file_handle :
+            file_data=file_handle.read()
+            
+            file_handle.close()
+            
+            return file_data
+        
+        return None
+    
+    def get(self) :
+        global TASK_DISPATCH_MANAGER_PASSWORD
+        
+        update_module_data=''
+        task_dispatch_manager_password=None
+        slave_machine_id=None
+        update_module_file=None
+        module_path=task_update_handle.get_module_path()
+        return_json={}
+        
+        try :
+            task_dispatch_manager_password=self.get_argument('task_dispatch_manager_password')
+        except :
+            task_dispatch_manager_password=None
+        
+        try :
+            slave_machine_id=self.get_argument('slave_machine_id')
+        except :
+            slave_machine_id=None
+        
+        try :
+            update_module_file=self.get_argument('module_name').replace('.','')
+        except :
+            update_module_file=None
+            
+        if task_slave_machine_manager.is_valid_slave_machine_id(slave_machine_id) or \
+            TASK_DISPATCH_MANAGER_PASSWORD==task_dispatch_manager_password :
+            if not None==update_module_file :
+                update_module_path=module_path+update_module_file
+                
+                if os.path.exists(update_module_path) :
+                    current_file_list=task_update_handle.list_dir_file(update_module_path)
+
+                    for current_file_index in current_file_list :
+                        return_json[task_update_handle.get_relative_path(current_file_index)]=task_update_handle.read_file(current_file_index)
+            else :
+                return_json=[]
+                
+                for module_index in task_update_handle.list_dir_dir(module_path) :
+                    return_json.append(module_index)
+        
+        self.write(json.dumps(return_json))
+        
+    
 class task_web_manager_handle(tornado.web.RequestHandler) :
     
     def get(self) :
@@ -863,6 +963,7 @@ if __name__=='__main__' :
         #  http://127.0.0.1/dispatch?slave_machine_id=
         ('/report',task_report_handle),
         #  http://127.0.0.1/report?slave_machine_id=&slave_machine_execute_task_id=&slave_machine_report=
+        ('/update',task_update_handle),
         ('/',task_web_manager_handle),
         #  http://127.0.0.1/
     ]

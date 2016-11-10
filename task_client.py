@@ -1,8 +1,10 @@
 
 import json
+import os
 import psutil
 import random
 import requests
+import sys
 import thread
 import time
 
@@ -14,6 +16,17 @@ class task_slave :
     
     __slave_machine_id=None
     __slave_machine_running=False
+    
+    @staticmethod
+    def get_module_path() :
+        current_file_name=sys.argv[0]
+        current_path=current_file_name[:current_file_name.rfind('\\')+1]+'module\\'
+
+        return current_path
+    
+    @staticmethod
+    def get_dir_path(path) :
+        return path[:path.rfind('\\')]
     
     @staticmethod
     def login(login_password,local_ip,local_machine_name) :
@@ -36,6 +49,36 @@ class task_slave :
         except :
             return False
 
+    @staticmethod
+    def get_update_module_list() :
+        update_url='http://127.0.0.1/update?slave_machine_id='+task_slave.__slave_machine_id
+        update=requests.get(update_url)
+        update_result=json.loads(update.text)
+        
+        return update_result
+        
+    @staticmethod
+    def update(module_name) :
+        update_url='http://127.0.0.1/update?slave_machine_id='+task_slave.__slave_machine_id+'&module_name='+module_name
+        update=requests.get(update_url)
+        update_file_list=json.loads(update.text)
+        
+        if len(update_file_list) :
+            for update_file_index in update_file_list.keys() :
+                update_file_dir_path=task_slave.get_module_path()+task_slave.get_dir_path(update_file_index)
+                
+                if not os.path.exists(update_file_dir_path) :
+                    os.makedirs(update_file_dir_path)
+                    
+                update_file_handle=open(task_slave.get_module_path()+update_file_index,'w')
+                
+                if update_file_handle :
+                    update_file_handle.write(update_file_list[update_file_index])
+                    
+            return True
+        
+        return False
+    
     @staticmethod
     def dispatch() :
         return_task_information={}
@@ -84,7 +127,8 @@ class task_slave :
 
             report_json['report_result']=task_result_list
         except Exception,e :
-            report_json['report_except_name']=Exception
+            print 'Execute Exception :',e
+            
             report_json['report_exception_descript']=e.message
             report_json['report_state']='except'
     
@@ -124,7 +168,7 @@ class task_slave :
 
     @staticmethod
     def __get_cpu_rate() :
-        cpu_data_list=psutil.cpu_percent(interval=5,percpu=True)
+        cpu_data_list=psutil.cpu_percent(interval=1,percpu=True)
         cpu_rate=0.0
         for cpu_data_index in cpu_data_list :
             cpu_rate+=cpu_data_index

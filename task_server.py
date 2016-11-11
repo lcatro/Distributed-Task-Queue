@@ -124,7 +124,7 @@ class task_slave_machine :
     
 class task_slave_machine_manager :
     
-    GLOBAL_SLAVE_MACHINE_GROUP='defalut'
+    GLOBAL_SLAVE_MACHINE_GROUP='global'
     
     __backup_slave_machine_list={}
     __slave_machine_list={}
@@ -152,6 +152,8 @@ class task_slave_machine_manager :
                 
                 if not is_valid_slave_machine_group :
                     task_slave_machine_manager.__slave_machine_list[slave_machine_group]={}
+                    
+                    task_dispatch.create_dispatch_task_queue(slave_machine_group)
                 
                 task_slave_machine_manager.__slave_machine_list[slave_machine_group][slave_machine_id]=new_task_slave_machine
                 
@@ -585,6 +587,13 @@ class task_dispatch :
             return 0
     
     @staticmethod
+    def create_dispatch_task_queue(slave_machine_group) :
+        if not task_dispatch.__dispatch_task_pool.is_valid_queue(slave_machine_group+task_dispatch.__TASK_DISPATCH_DISPATCH_TASK_QUEUE__) :
+            task_dispatch.__dispatch_task_pool.create_queue(slave_machine_group+task_dispatch.__TASK_DISPATCH_DISPATCH_TASK_QUEUE__)
+        if not task_dispatch.__dispatch_task_pool.is_valid_queue(slave_machine_group+task_dispatch.__TASK_DISPATCH_DISPATCH_INIT_TASK_QUEUE__) :
+            task_dispatch.__dispatch_task_pool.create_queue(slave_machine_group+task_dispatch.__TASK_DISPATCH_DISPATCH_INIT_TASK_QUEUE__)
+    
+    @staticmethod
     def add_task(task,is_single_task,dispatch_to_target_slave_machine_id=None,slave_machine_group=__TASK_DISPATCH_GLOBAL_TASK_QUEUE_NAME__) :
         task_dispatch.__dispatch_thread_lock.acquire()
         
@@ -649,8 +658,18 @@ class task_slave_login_handle(tornado.web.RequestHandler) :
         slave_machine_login_password=self.get_argument('slave_machine_login_password')
         slave_machine_ip=self.get_argument('slave_machine_ip')
         slave_machine_name=self.get_argument('slave_machine_name')
-        slave_machine_id=task_slave_machine_manager.login_slave_machine(slave_machine_login_password,slave_machine_ip,slave_machine_name)
+        slave_machine_group=None
         return_json={}
+        
+        try :
+            slave_machine_group=self.get_argument('slave_machine_group')
+        except :
+            pass
+        
+        if not None==slave_machine_group :
+            slave_machine_id=task_slave_machine_manager.login_slave_machine(slave_machine_login_password,slave_machine_ip,slave_machine_name,slave_machine_group)
+        else :
+            slave_machine_id=task_slave_machine_manager.login_slave_machine(slave_machine_login_password,slave_machine_ip,slave_machine_name)
     
         if not None==slave_machine_id :
             if not task_dispatch.dispatch_init_task(slave_machine_id) :
@@ -1079,6 +1098,8 @@ def test_case() :
 if __name__=='__main__' :
     
 #    test_case()
+
+    task_dispatch.recovery_task_dispatch()
     
     handler = [
         ('/login',task_slave_login_handle),

@@ -354,6 +354,15 @@ class task_pool :
         
         return return_queue_name_list
     
+    def is_valid_queue(self,queue_name) :
+        self.lock.acquire()
+        
+        return_result=self.task_queue_list.has_key(queue_name)
+
+        self.lock.release()
+        
+        return return_result
+
     def serialize(self) :
         return pickle.dumps(self.task_queue_list)
     

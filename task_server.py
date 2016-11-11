@@ -207,7 +207,7 @@ class task_slave_machine_manager :
                     
                     break
         except Exception,e :
-            print e
+            pass
         
         task_slave_machine_manager.__slave_thread_lock.release()
         
@@ -297,11 +297,8 @@ class task_slave_machine_manager :
         
         task_slave_machine_manager.__slave_thread_lock.acquire()
 
-        print 'get_slave_machine_list'
         for slave_machin_group_index in task_slave_machine_manager.__slave_machine_list.values() :
-            print slave_machin_group_index
             for slave_machin_id_index in slave_machin_group_index.keys() :
-                print slave_machin_id_index
                 return_slave_machine_list.append(slave_machin_id_index)
 
         task_slave_machine_manager.__slave_thread_lock.release()
@@ -573,7 +570,19 @@ class task_dispatch :
     def get_dispatch_task_queue_length(slave_machine_group=__TASK_DISPATCH_GLOBAL_TASK_QUEUE_NAME__) :
         task_queue_name=slave_machine_group+task_dispatch.__TASK_DISPATCH_DISPATCH_TASK_QUEUE__
         
-        return task_dispatch.__dispatch_task_pool.get_queue(task_queue_name).get_current_queue_length()
+        try :
+            return task_dispatch.__dispatch_task_pool.get_queue(task_queue_name).get_current_queue_length()
+        except :
+            return 0
+    
+    @staticmethod
+    def get_dispatch_init_task_queue_length(slave_machine_group=__TASK_DISPATCH_GLOBAL_TASK_QUEUE_NAME__) :
+        task_queue_name=slave_machine_group+task_dispatch.__TASK_DISPATCH_DISPATCH_INIT_TASK_QUEUE__
+        
+        try :
+            return task_dispatch.__dispatch_task_pool.get_queue(task_queue_name).get_current_queue_length()
+        except :
+            return 0
     
     @staticmethod
     def add_task(task,is_single_task,dispatch_to_target_slave_machine_id=None,slave_machine_group=__TASK_DISPATCH_GLOBAL_TASK_QUEUE_NAME__) :
@@ -581,6 +590,9 @@ class task_dispatch :
         
         target_task_queue_name=slave_machine_group+task_dispatch.__TASK_DISPATCH_DISPATCH_TASK_QUEUE__
         history_task_queue_name=task_dispatch.__TASK_DISPATCH_HISTORY_DISPATCH_TASK_QUEUE__
+            
+        if not task_dispatch.__dispatch_task_pool.is_valid_queue(target_task_queue_name) :
+            task_dispatch.__dispatch_task_pool.create_queue(target_task_queue_name)
             
         if None==dispatch_to_target_slave_machine_id :
             task_dispatch.__dispatch_task_pool.get_queue(target_task_queue_name).add_task(task,is_single_task)
@@ -597,13 +609,16 @@ class task_dispatch :
 
     @staticmethod
     def add_init_task(task,is_single_task,slave_machine_group=__TASK_DISPATCH_GLOBAL_TASK_QUEUE_NAME__) :
-        task_queue_name=slave_machine_group+task_dispatch.__TASK_DISPATCH_DISPATCH_TASK_QUEUE__
+        task_queue_name=slave_machine_group+task_dispatch.__TASK_DISPATCH_DISPATCH_INIT_TASK_QUEUE__
         
+        if not task_dispatch.__dispatch_task_pool.is_valid_queue(task_queue_name) :
+            task_dispatch.__dispatch_task_pool.create_queue(task_queue_name)
+            
         task_dispatch.__dispatch_task_pool.get_queue(task_queue_name).add_task(task,is_single_task,True)
         
     @staticmethod
     def get_init_task_list(slave_machine_group=__TASK_DISPATCH_GLOBAL_TASK_QUEUE_NAME__) :
-        task_queue_name=slave_machine_group+task_dispatch.__TASK_DISPATCH_DISPATCH_TASK_QUEUE__
+        task_queue_name=slave_machine_group+task_dispatch.__TASK_DISPATCH_DISPATCH_INIT_TASK_QUEUE__
         
         return task_dispatch.__dispatch_task_pool.get_queue(task_queue_name).get_task_id_list()
     
@@ -683,16 +698,25 @@ class task_add_task_handle(tornado.web.RequestHandler) :
         if TASK_DISPATCH_MANAGER_PASSWORD==manager_password and '127.0.0.1'==remote_ip :
             task_type=self.get_argument('task_type')
             task_dispatch_to_target_object_id=None
+            task_dispatch_to_target_slave_machine_group=None
             
             try :
                 task_dispatch_to_target_object_id=self.get_argument('dispatch_to_target_object_id')
             except :
                 task_dispatch_to_target_object_id=None
             
+            try :
+                task_dispatch_to_target_slave_machine_group=self.get_argument('dispatch_to_target_slave_machine_group')
+            except :
+                task_dispatch_to_target_slave_machine_group=None
+            
             if 'single_task'==task_type :
                 task_eval_code=base64.b64decode(self.get_argument('task_eval_code'))
                 
-                task_dispatch.add_task(task_pool.single_task(task_eval_code),True,task_dispatch_to_target_object_id)
+                if None==task_dispatch_to_target_slave_machine_group :
+                    task_dispatch.add_task(task_pool.single_task(task_eval_code),True,task_dispatch_to_target_object_id)
+                else :
+                    task_dispatch.add_task(task_pool.single_task(task_eval_code),True,task_dispatch_to_target_object_id,task_dispatch_to_target_slave_machine_group)
             elif 'multiple_task'==task_type :
                 try :
                     task_code_list_json=self.get_argument('task_code_list')
@@ -705,15 +729,21 @@ class task_add_task_handle(tornado.web.RequestHandler) :
 
                             task_code_list.add_task(task_index)
 
-                        task_dispatch.add_task(task_list,False,task_dispatch_to_target_object_id)
+                        if None==task_dispatch_to_target_slave_machine_group :
+                            task_dispatch.add_task(task_list,False,task_dispatch_to_target_object_id)
+                        else :
+                            task_dispatch.add_task(task_list,False,task_dispatch_to_target_object_id,task_dispatch_to_target_slave_machine_group)
                     else :
                         result_json['error']='None'
                 except :
-                    pass
+                    result_json['error']='None'
             elif 'init_single_task'==task_type :
                 task_eval_code=base64.b64decode(self.get_argument('task_eval_code'))
                 
-                task_dispatch.add_init_task(task_pool.single_task(task_eval_code),True)
+                if None==task_dispatch_to_target_slave_machine_group :
+                    task_dispatch.add_init_task(task_pool.single_task(task_eval_code),True)
+                else :
+                    task_dispatch.add_init_task(task_pool.single_task(task_eval_code),True,task_dispatch_to_target_slave_machine_group)
             elif 'init_multiple_task'==task_type :
                 try :
                     task_code_list_json=self.get_argument('task_code_list')
@@ -726,11 +756,14 @@ class task_add_task_handle(tornado.web.RequestHandler) :
 
                             task_code_list.add_task(task_index)
 
-                        task_dispatch.add_init_task(task_list,False)
+                        if None==task_dispatch_to_target_slave_machine_group :
+                            task_dispatch.add_init_task(task_list,False)
+                        else :
+                            task_dispatch.add_init_task(task_list,False,task_dispatch_to_target_slave_machine_group)
                     else :
                         result_json['error']='None'
                 except :
-                    pass
+                    result_json['error']='None'
                 
             result_json['success']='OK'
         else :
@@ -771,7 +804,16 @@ class task_manager_handle(tornado.web.RequestHandler) :
                 
                 result_json['success']='OK'
             elif 'queue'==manager_operate_type :
-                result_json['queue_length']=task_dispatch.get_dispatch_task_queue_length()
+                for slave_machine_group_index in task_slave_machine_manager.get_slave_machine_group_list() :
+                    result_json[slave_machine_group_index+'_queue_length']=task_dispatch.get_dispatch_task_queue_length(slave_machine_group_index)
+                    result_json[slave_machine_group_index+'_init_queue_length']=task_dispatch.get_dispatch_init_task_queue_length(slave_machine_group_index)
+            elif 'slave_machine_group_list'==manager_operate_type :
+                slave_machine_group_list=[]
+                
+                for slave_machine_group_index in task_slave_machine_manager.get_slave_machine_group_list() :
+                    slave_machine_group_list.append(slave_machine_group_index)
+                    
+                result_json['slave_machine_group_list']=slave_machine_group_list
             elif 'slave_machine_list'==manager_operate_type :
                 slave_machine_list=[]
                 
@@ -779,6 +821,7 @@ class task_manager_handle(tornado.web.RequestHandler) :
                     slave_machine_object=task_slave_machine_manager.get_slave_machine(slave_machine_index)
                     slave_machine_information={}
                     slave_machine_information['slave_machine_id']=slave_machine_index
+                    slave_machine_information['slave_machine_group']=task_slave_machine_manager.get_slave_machine_group(slave_machine_index)
                     slave_machine_information['slave_machine_ip']=slave_machine_object.get_slave_machine_ip()
                     slave_machine_information['slave_machine_name']=slave_machine_object.get_slave_machine_name()
                     slave_machine_information['slave_machine_state']=slave_machine_object.get_slave_machine_state()

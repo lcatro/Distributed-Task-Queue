@@ -182,9 +182,7 @@ class task_slave :
 
     
 if __name__=='__main__' :
-    
     if task_slave.login('t4sk_s3rv3r_l0g1n_p4ssw0rd','127.0.0.1','slave'+str(time.time())+str(random.random())) :
-        
         try :
             while True :
                 dispatch_task=task_slave.dispatch()

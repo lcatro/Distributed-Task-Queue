@@ -140,37 +140,38 @@ class task_slave_machine_manager :
         
         return_slave_machine_id=None
         
-        task_slave_machine_manager.__slave_thread_lock.acquire()
-        
         if SLAVE_LOGIN_PASSWORD==slave_machine_login_password :
-            task_slave_machine_manager.__slave_thread_lock.release()
-            
             slave_machine_id=task_slave_machine_manager.get_slave_machine_id(slave_machine_ip,slave_machine_name)
+            is_valid_slave_machine_group=task_slave_machine_manager.is_valid_slave_machine_group(slave_machine_group)
             
             task_slave_machine_manager.__slave_thread_lock.acquire()
             
             if None==slave_machine_id :
                 slave_machine_id=task_slave_machine_manager.__make_slave_machine_id(slave_machine_ip,slave_machine_name)
                 new_task_slave_machine=task_slave_machine(slave_machine_id,slave_machine_ip,slave_machine_name)
-                task_slave_machine_manager.__slave_machine_list[slave_machine_group]={}
+                
+                if not is_valid_slave_machine_group :
+                    task_slave_machine_manager.__slave_machine_list[slave_machine_group]={}
+                
                 task_slave_machine_manager.__slave_machine_list[slave_machine_group][slave_machine_id]=new_task_slave_machine
                 
+            task_slave_machine_manager.__slave_thread_lock.release()
+            
             return_slave_machine_id=slave_machine_id
-    
-        task_slave_machine_manager.__slave_thread_lock.release()
-        
+            
         return return_slave_machine_id
     
     @staticmethod
     def logout_slave_machine(slave_machine_id) :
         return_slave_machine_unexecute_task_list=False
         
-        slave_machine_group=task_slave_machine_manager.get_slave_machine_group(slave_machine_id)
-        
-        if not None==slave_machine :
-            return_slave_machine_unexecute_task_list=task_slave_machine_manager.__slave_machine_list[slave_machine_group][slave_machine_id].clear_all_task()
+        if task_slave_machine_manager.is_valid_slave_machine_id(slave_machine_id) :
+            slave_machine_group=task_slave_machine_manager.get_slave_machine_group(slave_machine_id)
             
             task_slave_machine_manager.__slave_thread_lock.acquire()
+            
+            return_slave_machine_unexecute_task_list=task_slave_machine_manager.__slave_machine_list[slave_machine_group][slave_machine_id].clear_all_task()
+            
             task_slave_machine_manager.__slave_machine_list[slave_machine_group].pop(slave_machine_id)
             task_slave_machine_manager.__slave_thread_lock.release()
         
@@ -189,7 +190,7 @@ class task_slave_machine_manager :
         
             task_slave_machine_manager.__slave_thread_lock.release()
         except :
-            pass
+            task_slave_machine_manager.__slave_thread_lock.release()
         
         return return_slave_machine
     
@@ -205,8 +206,8 @@ class task_slave_machine_manager :
                     return_slave_group=slave_machine_group
                     
                     break
-        except :
-            pass
+        except Exception,e :
+            print e
         
         task_slave_machine_manager.__slave_thread_lock.release()
         
@@ -242,7 +243,7 @@ class task_slave_machine_manager :
 
                 task_slave_machine_manager.__slave_thread_lock.release()
             except :
-                pass
+                task_slave_machine_manager.__slave_thread_lock.release()
         
         return return_value
     
@@ -259,7 +260,7 @@ class task_slave_machine_manager :
 
                 task_slave_machine_manager.__slave_thread_lock.release()
             except :
-                pass
+                task_slave_machine_manager.__slave_thread_lock.release()
         
         return return_value
     
@@ -275,7 +276,7 @@ class task_slave_machine_manager :
 
                 task_slave_machine_manager.__slave_thread_lock.release()
             except :
-                pass
+                task_slave_machine_manager.__slave_thread_lock.release()
     
     @staticmethod
     def get_slave_machine_group_list() :
@@ -296,8 +297,11 @@ class task_slave_machine_manager :
         
         task_slave_machine_manager.__slave_thread_lock.acquire()
 
+        print 'get_slave_machine_list'
         for slave_machin_group_index in task_slave_machine_manager.__slave_machine_list.values() :
+            print slave_machin_group_index
             for slave_machin_id_index in slave_machin_group_index.keys() :
+                print slave_machin_id_index
                 return_slave_machine_list.append(slave_machin_id_index)
 
         task_slave_machine_manager.__slave_thread_lock.release()
@@ -315,6 +319,16 @@ class task_slave_machine_manager :
                 return_result=False
         except :
             pass
+        
+        task_slave_machine_manager.__slave_thread_lock.release()
+        
+        return return_result
+    
+    @staticmethod
+    def is_valid_slave_machine_group(slave_machine_group_name=GLOBAL_SLAVE_MACHINE_GROUP) :
+        task_slave_machine_manager.__slave_thread_lock.acquire()
+        
+        return_result=task_slave_machine_manager.__slave_machine_list.has_key(slave_machine_group_name)
         
         task_slave_machine_manager.__slave_thread_lock.release()
         
@@ -785,7 +799,7 @@ class task_dispatch_handle(tornado.web.RequestHandler) :
     def get(self) :
         slave_machine_id=self.get_argument('slave_machine_id')
         return_json={}
-
+        
         if task_slave_machine_manager.is_valid_slave_machine_id(slave_machine_id) :
             slave_machine=task_slave_machine_manager.get_slave_machine(slave_machine_id)
             
@@ -796,7 +810,6 @@ class task_dispatch_handle(tornado.web.RequestHandler) :
 #                    return_json['dispatch_task']=new_task['task_object'].python_serialize()  #  Python serialize
                     return_json['dispatch_task']=new_task['task_object'].json_serialize()  #  JSON serialize
                     # WARNING ! it making serialize for task_object ,so we need to deserialize again ..
-
         self.write(json.dumps(return_json))
 
         
@@ -1023,8 +1036,6 @@ def test_case() :
 if __name__=='__main__' :
     
 #    test_case()
-    
-    task_dispatch.recovery_task_dispatch()
     
     handler = [
         ('/login',task_slave_login_handle),

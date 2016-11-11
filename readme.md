@@ -11,6 +11,7 @@
 
   slave machine 登陆接口<br/>
   参数:**slave_machine_login_password** 登陆密码,**slave_machine_ip** 主机IP ,**slave_machine_name** 主机名<br/>
+  可选参数:**slave_machine_group** 登陆进入指定的机组<br/>
   返回值:**slave_machine_id** 服务器分配主机唯一ID <br/>
   URL  http://127.0.0.1/login?slave_machine_login_password=&slave_machine_ip=&slave_machine_name=<br/>
   
@@ -77,6 +78,7 @@
 
   task dispatch server 添加任务接口<br/>
   参数:**task_dispatch_manager_password** 管理密码,**task_type** 任务类型,**task_eval_code** 任务代码<br/>
+  可选参数:**dispatch_to_target_slave_machine_group** 向指定机组添加任务(默认向全局机组添加),**dispatch_to_target_object_id** 向指定机器添加任务<br/>
   返回值:**success** 或者**error**<br/>
   `TIPS : 限制在本地主机IP 管理`<br/>
   
@@ -89,6 +91,8 @@
     TIPS : 初始化任务的意义为,当新的slave machine 登陆到服务器时先要执行的任务;普通任务的意义为,由服务器自动分配到slave machine 执行的任务
   
   URL  http://127.0.0.1/add_task?task_dispatch_manager_password=&task_type=&task_eval_code=<br/>
+  URL  http://127.0.0.1/add_task?task_dispatch_manager_password=&task_type=&task_eval_code=&dispatch_to_target_object_id=<br/>
+  URL  http://127.0.0.1/add_task?task_dispatch_manager_password=&task_type=&task_eval_code=&dispatch_to_target_slave_machine_group=<br/>
   
   关于服务器相关的接口使用例子保存在`task_server.py test_case()` ,客户端相关的接口使用例子保存在`task_client.py task_slave` 类
   

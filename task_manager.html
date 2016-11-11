@@ -59,10 +59,7 @@
             
             result=request_get('http://127.0.0.1/manager',url_argument);
             
-            if (undefined!=result.queue_length)
-                return result.queue_length;
-            
-            return -1;
+            return result;
         }
         
         function get_update_list() {
@@ -213,8 +210,15 @@
         
         function show_task_dispatch_server_queue(queue_information) {
             var output_div=document.getElementById('task_queue_information');
+            var output_slave_machine_group_list=document.getElementById('slave_machine_group');
             
-            output_div.innerHTML='Current Wait For Dispatch Task Queue Length :'+queue_information;
+            output_div.innerHTML='Current Wait For Dispatch Task Queue Information :<br/>';
+            output_slave_machine_group_list.innerHTML='';
+            
+            for (var queue_index in queue_information) {
+                output_div.innerHTML+='<strong>'+queue_index+' </strong>:'+queue_information[queue_index]+'<br/>';
+                output_slave_machine_group_list.innerHTML+='<option value ="'+queue_index+'">'+queue_index+'</option>';
+            }
         }
         
         function show_update_list(update_list) {
@@ -329,6 +333,12 @@
         
         <div id="add_task">
             
+            Add To Target Slave Group :
+            
+            <select id="slave_machine_group">
+
+            </select>
+                
             <nav>
                 
                 <input type="button" value="add singal task" onclick="select_add_singal_task()"/>

@@ -13,8 +13,9 @@ def make_task_id() :
 
 class single_task :
     
-    def __init__(self,task_code) :
+    def __init__(self,task_code,task_argument=None) :
         self.task_code=task_code
+        self.task_argument=task_argument
         self.task_other_information=local_database.key_value()
         self.task_id=make_task_id()
         
@@ -27,6 +28,12 @@ class single_task :
     def get_task_id(self) :
         return self.task_id
     
+    def set_task_code(self,task_code) :
+        self.task_code=task_code
+    
+    def set_task_argument(self,task_argument) :
+        self.task_argument=task_argument
+    
     def python_serialize(self) :
         return pickle.dumps(self)
     
@@ -34,6 +41,7 @@ class single_task :
         return_json={}
         return_json['task_id']=self.task_id
         return_json['task_code']=self.task_code
+        return_json['task_argument']=self.task_argument
         return_json['task_other_information']={}
         
         for task_other_information_key_index in self.task_other_information.list_key() :
@@ -62,6 +70,12 @@ class multiple_task :
             
         return None
     
+    def find_task_by_index(self,task_index) :
+        if task_index<len(self.single_task_list) :
+            return self.single_task_list[task_index]
+            
+        return None
+    
     def delete_task(self,task_id) :
         for single_task_index in self.single_task_list :
             if task_id==single_task_index.get_task_id() :
@@ -71,6 +85,9 @@ class multiple_task :
             
         return False
 
+    def clear_task(self) :
+        self.single_task_list=[]
+    
     def set_task_information(self,information_key_name,information_key_value) :
         self.task_other_information.set_key(information_key_name,information_key_value)
         
@@ -114,13 +131,23 @@ class multiple_task :
         for task_index in self.single_task_list :
             return_json['task_list'].append(task_index.json_serialize())
         
-        return_json['task_other_information']={}
-        
-        for task_other_information_key_index in self.task_other_information.list_key() :
-            return_json['task_other_information'][task_other_information_key_index]=self.task_other_information.get_key(task_other_information_key_index)
-        
         return json.dumps(return_json)
 
+    
+class workflow_task(multiple_task) :
+    
+    def add_task(self,single_task_object,next_dispatch_slave_machine_group) :
+        single_task_object.set_task_information('is_workflow_task',True)
+        single_task_object.set_task_information('next_dispatch_slave_machine_group',next_dispatch_slave_machine_group)
+
+        task_list_length=self.get_task_list_length()
+        
+        if task_list_length :
+            last_single_task_object=find_task_by_index(task_list_length-1)
+            
+            last_single_task_object.set_task_information('next_task_id',single_task_object.get_task_id())
+            multiple_task.add_task(self,single_task_object)
+    
     
 class task_state :
     
@@ -225,17 +252,14 @@ class task_queue :
                         
                         break
                     else :
-                        pass
                     #  WARNING !! read a single_task in multiple_task ,it can not return a object like self.task_list
                     #  so we can not set task status ..
-                        '''
                         task_object=task_index['task_object'].find_task(task_id)
                         
                         if not None==task_object :
                             return_task=task_object
             
                             break
-                        '''
             
         self.lock.release()
         
@@ -318,6 +342,23 @@ class task_pool :
             self.task_queue_list[task_queue_name]=task_queue()
         
         self.lock.release()
+        
+    def find_task(self,task_id) :
+        self.lock.acquire()
+        
+        return_task=None
+        
+        for queue_index in self.task_queue_list.values() :
+            find_task_object=queue_index.find_task(task_id)
+            
+            if not None==find_task_object :
+                return_task=find_task_object
+                
+                break
+        
+        self.lock.release()
+        
+        return return_task
         
     def get_queue(self,task_queue_name) :
         self.lock.acquire()

@@ -617,6 +617,10 @@ class task_dispatch :
         task_dispatch.dispatch()
 
     @staticmethod
+    def find_task(task_id) :
+        return task_dispatch.__dispatch_task_pool.find_task(task_id)
+        
+    @staticmethod
     def add_init_task(task,is_single_task,slave_machine_group=__TASK_DISPATCH_GLOBAL_TASK_QUEUE_NAME__) :
         task_queue_name=slave_machine_group+task_dispatch.__TASK_DISPATCH_DISPATCH_INIT_TASK_QUEUE__
         
@@ -746,7 +750,7 @@ class task_add_task_handle(tornado.web.RequestHandler) :
                         for task_index in task_code_list :
                             task=task_pool.single_task(base64.b64decode(task_index['task_eval_code']))
 
-                            task_code_list.add_task(task_index)
+                            task_code_list.add_task(task)
 
                         if None==task_dispatch_to_target_slave_machine_group :
                             task_dispatch.add_task(task_list,False,task_dispatch_to_target_object_id)
@@ -760,9 +764,9 @@ class task_add_task_handle(tornado.web.RequestHandler) :
                 task_eval_code=base64.b64decode(self.get_argument('task_eval_code'))
                 
                 if None==task_dispatch_to_target_slave_machine_group :
-                    task_dispatch.add_init_task(task_pool.single_task(task_eval_code),True)
+                    task_dispatch.add_init_task(task_pool.single_task(task_eval_code),True,task_dispatch_to_target_object_id)
                 else :
-                    task_dispatch.add_init_task(task_pool.single_task(task_eval_code),True,task_dispatch_to_target_slave_machine_group)
+                    task_dispatch.add_init_task(task_pool.single_task(task_eval_code),True,task_dispatch_to_target_object_id,task_dispatch_to_target_slave_machine_group)
             elif 'init_multiple_task'==task_type :
                 try :
                     task_code_list_json=self.get_argument('task_code_list')
@@ -773,12 +777,32 @@ class task_add_task_handle(tornado.web.RequestHandler) :
                         for task_index in task_code_list :
                             task=task_pool.single_task(base64.b64decode(task_index['task_eval_code']))
 
-                            task_code_list.add_task(task_index)
+                            task_code_list.add_task(task)
 
                         if None==task_dispatch_to_target_slave_machine_group :
-                            task_dispatch.add_init_task(task_list,False)
+                            task_dispatch.add_init_task(task_list,False,task_dispatch_to_target_object_id)
                         else :
-                            task_dispatch.add_init_task(task_list,False,task_dispatch_to_target_slave_machine_group)
+                            task_dispatch.add_init_task(task_list,False,task_dispatch_to_target_object_id,task_dispatch_to_target_slave_machine_group)
+                    else :
+                        result_json['error']='None'
+                except :
+                    result_json['error']='None'
+            elif 'workflow_task'==task_type :
+                try :
+                    task_code_list_json=self.get_argument('task_code_list')
+                    task_code_list=json.loads(task_code_list_json)
+                    task_list=task_pool.workflow_task()
+                    
+                    if len(task_code_list) :
+                        for task_index in task_code_list :
+                            task=task_pool.single_task(base64.b64decode(task_index['task_eval_code']))
+
+                            task_code_list.add_task(task,task_index['next_dispatch_slave_machine_group'])
+
+                        if None==task_dispatch_to_target_slave_machine_group :
+                            task_dispatch.add_init_task(task_list,False,task_dispatch_to_target_object_id)
+                        else :
+                            task_dispatch.add_init_task(task_list,False,task_dispatch_to_target_object_id,task_dispatch_to_target_slave_machine_group)
                     else :
                         result_json['error']='None'
                 except :
@@ -898,7 +922,23 @@ class task_report_handle(tornado.web.RequestHandler) :
                     if task_slave_machine.task_slave_machine_state.running_task==slave_machine.get_slave_machine_state() and \
                         slave_machine.get_current_execute_task_id()==slave_machine_execute_task_id :
                         slave_machine.finish_task()
-                        task_dispatch.submit_result(slave_machine_execute_task_id,slave_machine_report)
+                        
+                        task=task_dispatch.find_task(slave_machine_execute_task_id)
+                        
+                        if not None==task.get_task_information('is_workflow_task') :
+                            next_task_id=task.get_task_information('next_task_id')
+                            next_dispatch_slave_machine_group=task.get_task_information('next_dispatch_slave_machine_group')
+                            
+                            if not None==next_task_id :
+                                next_task=task_dispatch.find_task(next_task_id)
+                                
+                                next_task.set_task_argument(slave_machine_report)
+                                task_dispatch.add_task(next_task,True,slave_machine_group=next_dispatch_slave_machine_group)
+                            else :
+                                task_dispatch.submit_result(slave_machine_execute_task_id,slave_machine_report)
+                        else :
+                            task_dispatch.submit_result(slave_machine_execute_task_id,slave_machine_report)
+                            
                         task_dispatch.dispatch()
 
                         return_json['success']=slave_machine_execute_task_id

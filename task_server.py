@@ -127,7 +127,7 @@ class task_slave_machine_manager :
     GLOBAL_SLAVE_MACHINE_GROUP='global'
     
     __backup_slave_machine_list={}
-    __slave_machine_list={}
+    __slave_machine_list={GLOBAL_SLAVE_MACHINE_GROUP:{}}
     __slave_thread_lock=thread.allocate_lock()
     
     @staticmethod
@@ -1139,7 +1139,7 @@ if __name__=='__main__' :
     
 #    test_case()
 
-    task_dispatch.recovery_task_dispatch()
+#    task_dispatch.recovery_task_dispatch()
     
     handler = [
         ('/login',task_slave_login_handle),

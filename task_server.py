@@ -740,6 +740,8 @@ class task_add_task_handle(tornado.web.RequestHandler) :
                     task_dispatch.add_task(task_pool.single_task(task_eval_code),True,task_dispatch_to_target_object_id)
                 else :
                     task_dispatch.add_task(task_pool.single_task(task_eval_code),True,task_dispatch_to_target_object_id,task_dispatch_to_target_slave_machine_group)
+                    
+                result_json['success']='OK'
             elif 'multiple_task'==task_type :
                 try :
                     task_code_list_json=self.get_argument('task_code_list')
@@ -756,6 +758,8 @@ class task_add_task_handle(tornado.web.RequestHandler) :
                             task_dispatch.add_task(task_list,False,task_dispatch_to_target_object_id)
                         else :
                             task_dispatch.add_task(task_list,False,task_dispatch_to_target_object_id,task_dispatch_to_target_slave_machine_group)
+                            
+                        result_json['success']='OK'
                     else :
                         result_json['error']='None'
                 except :
@@ -767,6 +771,8 @@ class task_add_task_handle(tornado.web.RequestHandler) :
                     task_dispatch.add_init_task(task_pool.single_task(task_eval_code),True,task_dispatch_to_target_object_id)
                 else :
                     task_dispatch.add_init_task(task_pool.single_task(task_eval_code),True,task_dispatch_to_target_object_id,task_dispatch_to_target_slave_machine_group)
+
+                result_json['success']='OK'
             elif 'init_multiple_task'==task_type :
                 try :
                     task_code_list_json=self.get_argument('task_code_list')
@@ -783,32 +789,43 @@ class task_add_task_handle(tornado.web.RequestHandler) :
                             task_dispatch.add_init_task(task_list,False,task_dispatch_to_target_object_id)
                         else :
                             task_dispatch.add_init_task(task_list,False,task_dispatch_to_target_object_id,task_dispatch_to_target_slave_machine_group)
+                            
+                        result_json['success']='OK'
                     else :
                         result_json['error']='None'
                 except :
                     result_json['error']='None'
             elif 'workflow_task'==task_type :
-                try :
-                    task_code_list_json=self.get_argument('task_code_list')
-                    task_code_list=json.loads(task_code_list_json)
-                    task_list=task_pool.workflow_task()
-                    
-                    if len(task_code_list) :
-                        for task_index in task_code_list :
-                            task=task_pool.single_task(base64.b64decode(task_index['task_eval_code']))
+#                try :
+                task_code_list_json=self.get_argument('task_code_list')
+                task_code_list=json.loads(task_code_list_json)
+                task_list=task_pool.workflow_task()
 
-                            task_code_list.add_task(task,task_index['next_dispatch_slave_machine_group'])
+                if len(task_code_list) :
+                    for task_index in task_code_list :
+                        task=task_pool.single_task(base64.b64decode(task_index['task_eval_code']))
+                        task_dispatch_to_slave_machine_group=None
+                        
+                        try :
+                            task_dispatch_to_slave_machine_group=task_index['next_dispatch_slave_machine_group']
+                            
+                            if 'None'==task_dispatch_to_slave_machine_group :
+                                task_dispatch_to_slave_machine_group=None
+                        except :
+                            pass
 
-                        if None==task_dispatch_to_target_slave_machine_group :
-                            task_dispatch.add_init_task(task_list,False,task_dispatch_to_target_object_id)
-                        else :
-                            task_dispatch.add_init_task(task_list,False,task_dispatch_to_target_object_id,task_dispatch_to_target_slave_machine_group)
+                        task_list.add_task(task,task_dispatch_to_slave_machine_group)
+
+                    if None==task_dispatch_to_target_slave_machine_group :
+                        task_dispatch.add_task(task_list,False,task_dispatch_to_target_object_id)
                     else :
-                        result_json['error']='None'
-                except :
+                        task_dispatch.add_task(task_list,False,task_dispatch_to_target_object_id,task_dispatch_to_target_slave_machine_group)
+
+                    result_json['success']='OK'
+                else :
                     result_json['error']='None'
-                
-            result_json['success']='OK'
+#                except :
+#                    result_json['error']='None'
         else :
             result_json['error']='None'
         
@@ -925,20 +942,30 @@ class task_report_handle(tornado.web.RequestHandler) :
                         
                         task=task_dispatch.find_task(slave_machine_execute_task_id)
                         
-                        if not None==task.get_task_information('is_workflow_task') :
-                            next_task_id=task.get_task_information('next_task_id')
-                            next_dispatch_slave_machine_group=task.get_task_information('next_dispatch_slave_machine_group')
-                            
-                            if not None==next_task_id :
-                                next_task=task_dispatch.find_task(next_task_id)
-                                
-                                next_task.set_task_argument(slave_machine_report)
-                                task_dispatch.add_task(next_task,True,slave_machine_group=next_dispatch_slave_machine_group)
+                        if not None==task :
+                            try :
+                                task=task['task_object']
+                            except :
+                                pass
+
+                            if not None==task.get_task_information('is_workflow_task') :
+                                next_task_id=task.get_task_information('next_task_id')
+                                next_dispatch_slave_machine_group=task.get_task_information('next_dispatch_slave_machine_group')
+
+                                if not None==next_task_id :
+                                    next_task=task_dispatch.find_task(next_task_id)
+
+                                    next_task.set_task_argument(slave_machine_report)
+
+                                    if not None==next_dispatch_slave_machine_group :
+                                        task_dispatch.add_task(next_task,True,slave_machine_group=next_dispatch_slave_machine_group)
+                                    else :
+                                        task_dispatch.add_task(next_task,True)
+                                else :
+                                    task_dispatch.submit_result(slave_machine_execute_task_id,slave_machine_report)
                             else :
                                 task_dispatch.submit_result(slave_machine_execute_task_id,slave_machine_report)
-                        else :
-                            task_dispatch.submit_result(slave_machine_execute_task_id,slave_machine_report)
-                            
+
                         task_dispatch.dispatch()
 
                         return_json['success']=slave_machine_execute_task_id
@@ -1105,7 +1132,7 @@ def test_case_dynamic_add_task() :
             requests.post('http://127.0.0.1/add_task',data=post_argument)
         
 def test_case() :
-    task_dispatch.recovery_task_dispatch()
+#    task_dispatch.recovery_task_dispatch()
     
     test_task_1=task_pool.single_task('print 123')
     test_task_2=task_pool.single_task('print 321')
@@ -1126,6 +1153,7 @@ def test_case() :
         ('/manager',task_manager_handle),
         ('/dispatch',task_dispatch_handle),
         ('/report',task_report_handle),
+        ('/update',task_update_handle),
         ('/',task_web_manager_handle),
     ]
     http_server=tornado.web.Application(handlers=handler)

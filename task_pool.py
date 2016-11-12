@@ -143,10 +143,11 @@ class workflow_task(multiple_task) :
         task_list_length=self.get_task_list_length()
         
         if task_list_length :
-            last_single_task_object=find_task_by_index(task_list_length-1)
+            last_single_task_object=multiple_task.find_task_by_index(self,task_list_length-1)
             
             last_single_task_object.set_task_information('next_task_id',single_task_object.get_task_id())
-            multiple_task.add_task(self,single_task_object)
+            
+        multiple_task.add_task(self,single_task_object)
     
     
 class task_state :

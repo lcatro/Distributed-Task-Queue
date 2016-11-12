@@ -74,6 +74,19 @@
             return false;
         }
         
+        function get_slave_machine_group_list() {
+            url_argument={};
+            url_argument.task_dispatch_manager_password=task_dispatch_manager_password;
+            url_argument.manager_operate_type='slave_machine_group_list';
+            
+            result=request_get('http://127.0.0.1/manager',url_argument);
+            
+            if (undefined!=result.slave_machine_group_list)
+                return result.slave_machine_group_list;
+            
+            return false;
+        }
+        
         function get_slave_machine_list() {
             url_argument={};
             url_argument.task_dispatch_manager_password=task_dispatch_manager_password;
@@ -158,7 +171,7 @@
             encode_task_code_list=[]
             
             for (var encode_task_code_index in task_code_list)
-                encode_task_code_list.append(base64_encode(encode_task_code_index));
+                encode_task_code_list.push(base64_encode(encode_task_code_index));
             
             url_argument={};
             url_argument.task_dispatch_manager_password=task_dispatch_manager_password;
@@ -192,12 +205,43 @@
             encode_task_code_list=[]
             
             for (var encode_task_code_index in task_code_list)
-                encode_task_code_list.append(base64_encode(encode_task_code_index));
+                encode_task_code_list.push(base64_encode(encode_task_code_index));
             
             url_argument={};
             url_argument.dispatch_to_target_object_id=slave_machine_id;
             url_argument.task_dispatch_manager_password=task_dispatch_manager_password;
             url_argument.task_type='multiple_task';
+            url_argument.task_code_list=JSON.stringify(encode_task_code_list);
+            
+            result=request_post('http://127.0.0.1/add_task',url_argument);
+            
+            if (undefined!=result.success)
+                return true;
+            
+            return false;
+        }
+        
+        function add_workflow_task(task_code_list,slave_machine_group_list) {
+            encode_task_code_list=[]
+            slave_machine_group_index=0
+            
+            for (var task_code_index in task_code_list) {
+                if ('undefine'!=typeof(slave_machine_group_list[slave_machine_group_index])) {
+                    encode_task_code_list.push({
+                        'next_dispatch_slave_machine_group':slave_machine_group_list[slave_machine_group_index],
+                        'task_eval_code':base64_encode(task_code_list[task_code_index])
+                    });
+                } else {
+                    encode_task_code_list.push({
+                        'task_eval_code':base64_encode(task_code_list[task_code_index])
+                    });
+                }
+                slave_machine_group_index+=1;
+            }
+            
+            url_argument={};
+            url_argument.task_dispatch_manager_password=task_dispatch_manager_password;
+            url_argument.task_type='workflow_task';
             url_argument.task_code_list=JSON.stringify(encode_task_code_list);
             
             result=request_post('http://127.0.0.1/add_task',url_argument);
@@ -215,10 +259,8 @@
             output_div.innerHTML='Current Wait For Dispatch Task Queue Information :<br/>';
             output_slave_machine_group_list.innerHTML='';
             
-            for (var queue_index in queue_information) {
+            for (var queue_index in queue_information)
                 output_div.innerHTML+='<strong>'+queue_index+' </strong>:'+queue_information[queue_index]+'<br/>';
-                output_slave_machine_group_list.innerHTML+='<option value ="'+queue_index+'">'+queue_index+'</option>';
-            }
         }
         
         function show_update_list(update_list) {
@@ -228,6 +270,16 @@
             for (var update_index in update_list)
                 output_div.innerHTML+='module'+update_index+':'+update_list[update_index]+'<br/>';
             
+        }
+        
+        function show_slave_machine_group_list(slave_machine_group_list) {
+            var output_slave_machine_group_list=document.getElementById('slave_machine_group');
+            
+            for (var slave_machine_group_index in slave_machine_group_list) {
+                var slave_machine_group=slave_machine_group_list[slave_machine_group_index];
+                
+                output_slave_machine_group_list.innerHTML+='<option value ="'+slave_machine_group+'">'+slave_machine_group+'</option>';
+            }
         }
         
         function show_slave_machine_list(slave_machine_list) {
@@ -254,35 +306,91 @@
         
         function add_singal_task() {
             var task_code=document.getElementById('add_singal_task_code');
+            var task_dispatch_to_slave_machine_group=document.getElementById('slave_machine_group');
+            task_dispatch_to_slave_machine_group=task_dispatch_to_slave_machine_group.selectedOptions;
             
-            add_single_task(task_code.value);
+            add_single_task(task_code.value,task_dispatch_to_slave_machine_group.value);
         }
         
         function add_init_singal_task() {
             var task_code=document.getElementById('add_init_singal_task_code');
+            var task_dispatch_to_slave_machine_group=document.getElementById('slave_machine_group');
+            task_dispatch_to_slave_machine_group=task_dispatch_to_slave_machine_group.selectedOptions;
             
-            add_init_single_task(task_code.value);
+            add_init_single_task(task_code.value,task_dispatch_to_slave_machine_group.value);
         }
         
+        function add_a_workflow_task() {
+            var task_code_list=[]
+            var task_dispatch_slave_machine_group_list=[]
+            
+            for (var task_index=0;task_index<add_workflow_task_index;++task_index) {
+                var task_code=document.getElementById('add_workflow_task_code'+task_index);
+                var task_dispatch_to_slave_machine_group=document.getElementById('add_to_slave_machine_group'+task_index);
+                task_dispatch_to_slave_machine_group=task_dispatch_to_slave_machine_group.selectedOptions;
+                
+                task_code_list.push(task_code.value);
+                task_dispatch_slave_machine_group_list.push(task_dispatch_to_slave_machine_group.value);
+            }
+            
+            add_workflow_task(task_code_list,task_dispatch_slave_machine_group_list);
+        }
+        
+        var add_workflow_task_index=0;
+        
+        function add_workflow_task_ui() {
+            var add_task_div=document.getElementById('add_workflow_task_list');
+            var slave_machine_group_list=get_slave_machine_group_list()
+            var option_code='';
+            
+            for (var slave_machine_group_index in slave_machine_group_list) {
+                var slave_machine_group=slave_machine_group_list[slave_machine_group_index];
+                
+                option_code+='<option value="'+slave_machine_group+'">'+slave_machine_group+'</option>';
+            }
+            
+            add_task_div.innerHTML+='<br/>Select Next Task Dispatch Group<select id="add_to_slave_machine_group'+add_workflow_task_index+'"><option value="None">None</option>'+option_code+'</select>';
+            add_task_div.innerHTML+='<br/><textarea id="add_workflow_task_code'+add_workflow_task_index+'" rows="35" cols="150"></textarea>';
+            add_workflow_task_index+=1;
+        }
+                    
         function select_add_singal_task() {
             var add_init_task=document.getElementById('add_singal_task');
             var add_init_singal_task=document.getElementById('add_init_singal_task');
+            var add_workflow_task=document.getElementById('add_workflow_task');
             
             add_init_task.style.display='block';
             add_init_singal_task.style.display='none';
+            add_workflow_task.style.display='block';
         }
         
         function select_add_init_singal_task() {
             var add_init_task=document.getElementById('add_singal_task');
             var add_init_singal_task=document.getElementById('add_init_singal_task');
+            var add_workflow_task=document.getElementById('add_workflow_task');
             
             add_init_task.style.display='none';
             add_init_singal_task.style.display='block';
+            add_workflow_task.style.display='block';
+        }
+        
+        function select_workflow_task() {
+            var add_init_task=document.getElementById('add_singal_task');
+            var add_init_singal_task=document.getElementById('add_init_singal_task');
+            var add_workflow_task=document.getElementById('add_workflow_task');
+            var add_task_div=document.getElementById('add_workflow_task_list');
+            
+            add_init_task.style.display='none';
+            add_init_singal_task.style.display='none';
+            add_workflow_task.style.display='block';
+            add_task_div.innerHTML='';
+            add_workflow_task_index=0;
         }
         
         function flash_server_data() {
             show_update_list(get_update_list());
             show_task_dispatch_server_queue(get_queue_length());
+            show_slave_machine_group_list(get_slave_machine_group_list());
             show_slave_machine_list(get_slave_machine_list());
         }
         
@@ -345,6 +453,7 @@
                 <input type="button" value="add multiple task" onclick=""/>
                 <input type="button" value="add init singal task" onclick="select_add_init_singal_task()"/>
                 <input type="button" value="add init multiple task" onclick=""/>
+                <input type="button" value="add workflow task" onclick="select_workflow_task()"/>
                 
             </nav>
             
@@ -369,6 +478,22 @@
                 <br/>
 
                 <textarea id="add_init_singal_task_code" rows="35" cols="150"></textarea>
+
+            </div>
+            
+            <div id="add_workflow_task" style="display:none">
+
+                Add WorkFlow Task :<br/>
+
+                Input execute Python Code :  <input type="submit" onclick="add_a_workflow_task()" />
+
+                <br/>
+                <br/>
+                Add a Task : <input type="button" value="Add a Task" onclick="add_workflow_task_ui()" /><br/>
+                
+                <div id="add_workflow_task_list">
+                    
+                </div>
 
             </div>
             

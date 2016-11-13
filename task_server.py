@@ -408,7 +408,7 @@ class task_dispatch :
         task_dispatch_database=local_database.database.create_new_database(task_dispatch.__TASK_DISPATCH__)
         
         task_dispatch_database.get_key_set().set_key(task_dispatch.__TASK_DISPATCH__,task_pool.task_pool().serialize())
-        task_dispatch_database.get_key_set().set_key(task_dispatch.__TASK_DISPATCH_SLAVE_MACHINE_LIST__,pickle.dumps({}))  #  serialize a empty dict ..
+        task_dispatch_database.get_key_set().set_key(task_dispatch.__TASK_DISPATCH_SLAVE_MACHINE_LIST__,pickle.dumps({__TASK_DISPATCH_GLOBAL_TASK_QUEUE_NAME__:{}}))  #  serialize a empty task_slave_machine_manager dict ..
         task_dispatch_database.save_database()
         
         task_dispatch.__dispatch_thread_lock.release()

@@ -85,10 +85,16 @@
     task_type 任务类型支持初始化任务和普通任务的处理,传递参数的值如下:
     init_single_task    添加初始化单任务
     init_multiple_task  添加初始化多任务
-    single_task         添加初普通单任务
-    multiple_task       添加初普通多任务
+    init_workflow_task  添加初始化工作流任务
+    single_task         添加普通单任务
+    multiple_task       添加普通多任务
+    workflow_task       添加工作流任务
   
-    TIPS : 初始化任务的意义为,当新的slave machine 登陆到服务器时先要执行的任务;普通任务的意义为,由服务器自动分配到slave machine 执行的任务
+    单任务:执行单个代码任务
+    多任务:多个单任务的集合
+    初始化任务:当新的slave machine 登陆到服务器时先要执行的任务
+    普通任务:由服务器自动分配到slave machine 执行的任务
+    工作流任务:把当前执行完成的任务结果递交到接下来要处理这些数据slave machine 组执行
   
   URL  http://127.0.0.1/add_task?task_dispatch_manager_password=&task_type=&task_eval_code=<br/>
   URL  http://127.0.0.1/add_task?task_dispatch_manager_password=&task_type=&task_eval_code=&dispatch_to_target_object_id=<br/>
@@ -132,6 +138,18 @@
   执行任务的主机尽量简单布置,最好能让一个模块就能够做很多的事情,所以把代码当作是一个任务来执行是不错的解决方案,首先可以解决掉复杂的任务语句处理(就像Windows 的控制台解析批处理文件一样,会使得执行任务的模块变得臃肿而且拓展性不高),除去Python 可以执行分配下来的任务,几乎支持所有可以使用`eval()` 执行的语言(无论是Python 还是JavaScript 等),不受执行的平台所限制(即便是作为本地进程来运行的Python ,还是浏览器的前端JavaScript 都可以领取任务执行)<br/>
 
   派遣到主机分为两种任务:`single_task` (单任务)和`multiple_task` (多任务),`multiple_task` 相当于提供一组`single_task` 单任务列表,让执行任务的主机按照顺序来执行每个任务
+
+---
+
+####机器分组
+
+  分布式系统在很多情况下需要执行多种不同样的任务,而且这些任务只能派发到指定分组的机器执行,比如说A 组机器用于扫描目的站点的漏洞(分布式扫描,加快扫描进度),B 组机器用于针对扫描出来的站点漏洞进行利用(分布式利用,不容易发现真实的攻击机器)
+
+---
+
+####工作流任务
+
+  在进行分布式计算时,假设A 机组用于生产数据,B 机组用于处理数据,C 机组用于保存数据,那么根据数据处理流程来说是`A -> B -> C` ,工作流任务的意义为把派发到A 机组处理完成的任务结果转发到B 机组继续处理,然后把B 机组处理完成的结果继续递交到C 机组处理.`workflow_task` 实际上是`multiple_task` ,只是在`multiple_task` 里面设置了`is_workflow_task` 值,在`task_server.py task_report_handle` 中会根据Slave Machine 处理完成的任务ID 来判断这个是否为`workflow_task` 任务,最后通过`next_task_id` 和`next_dispatch_slave_machine_group` 值来转发到下一个要处理数据的机组
 
 ---
 

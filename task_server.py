@@ -768,9 +768,9 @@ class task_add_task_handle(tornado.web.RequestHandler) :
                 task_eval_code=base64.b64decode(self.get_argument('task_eval_code'))
                 
                 if None==task_dispatch_to_target_slave_machine_group :
-                    task_dispatch.add_init_task(task_pool.single_task(task_eval_code),True,task_dispatch_to_target_object_id)
+                    task_dispatch.add_init_task(task_pool.single_task(task_eval_code),True)
                 else :
-                    task_dispatch.add_init_task(task_pool.single_task(task_eval_code),True,task_dispatch_to_target_object_id,task_dispatch_to_target_slave_machine_group)
+                    task_dispatch.add_init_task(task_pool.single_task(task_eval_code),True,task_dispatch_to_target_slave_machine_group)
 
                 result_json['success']='OK'
             elif 'init_multiple_task'==task_type :
@@ -786,9 +786,9 @@ class task_add_task_handle(tornado.web.RequestHandler) :
                             task_code_list.add_task(task)
 
                         if None==task_dispatch_to_target_slave_machine_group :
-                            task_dispatch.add_init_task(task_list,False,task_dispatch_to_target_object_id)
+                            task_dispatch.add_init_task(task_list,False)
                         else :
-                            task_dispatch.add_init_task(task_list,False,task_dispatch_to_target_object_id,task_dispatch_to_target_slave_machine_group)
+                            task_dispatch.add_init_task(task_list,False,task_dispatch_to_target_slave_machine_group)
                             
                         result_json['success']='OK'
                     else :
@@ -796,36 +796,67 @@ class task_add_task_handle(tornado.web.RequestHandler) :
                 except :
                     result_json['error']='None'
             elif 'workflow_task'==task_type :
-#                try :
-                task_code_list_json=self.get_argument('task_code_list')
-                task_code_list=json.loads(task_code_list_json)
-                task_list=task_pool.workflow_task()
+                try :
+                    task_code_list_json=self.get_argument('task_code_list')
+                    task_code_list=json.loads(task_code_list_json)
+                    task_list=task_pool.workflow_task()
 
-                if len(task_code_list) :
-                    for task_index in task_code_list :
-                        task=task_pool.single_task(base64.b64decode(task_index['task_eval_code']))
-                        task_dispatch_to_slave_machine_group=None
-                        
-                        try :
-                            task_dispatch_to_slave_machine_group=task_index['next_dispatch_slave_machine_group']
-                            
-                            if 'None'==task_dispatch_to_slave_machine_group :
-                                task_dispatch_to_slave_machine_group=None
-                        except :
-                            pass
+                    if len(task_code_list) :
+                        for task_index in task_code_list :
+                            task=task_pool.single_task(base64.b64decode(task_index['task_eval_code']))
+                            task_dispatch_to_slave_machine_group=None
 
-                        task_list.add_task(task,task_dispatch_to_slave_machine_group)
+                            try :
+                                task_dispatch_to_slave_machine_group=task_index['next_dispatch_slave_machine_group']
 
-                    if None==task_dispatch_to_target_slave_machine_group :
-                        task_dispatch.add_task(task_list,False,task_dispatch_to_target_object_id)
+                                if 'None'==task_dispatch_to_slave_machine_group :
+                                    task_dispatch_to_slave_machine_group=None
+                            except :
+                                pass
+
+                            task_list.add_task(task,task_dispatch_to_slave_machine_group)
+
+                        if None==task_dispatch_to_target_slave_machine_group :
+                            task_dispatch.add_task(task_list,False,task_dispatch_to_target_object_id)
+                        else :
+                            task_dispatch.add_task(task_list,False,task_dispatch_to_target_object_id,task_dispatch_to_target_slave_machine_group)
+
+                        result_json['success']='OK'
                     else :
-                        task_dispatch.add_task(task_list,False,task_dispatch_to_target_object_id,task_dispatch_to_target_slave_machine_group)
-
-                    result_json['success']='OK'
-                else :
+                        result_json['error']='None'
+                except :
                     result_json['error']='None'
-#                except :
-#                    result_json['error']='None'
+            elif 'init_workflow_task'==task_type :
+                try :
+                    task_code_list_json=self.get_argument('task_code_list')
+                    task_code_list=json.loads(task_code_list_json)
+                    task_list=task_pool.workflow_task()
+
+                    if len(task_code_list) :
+                        for task_index in task_code_list :
+                            task=task_pool.single_task(base64.b64decode(task_index['task_eval_code']))
+                            task_dispatch_to_slave_machine_group=None
+
+                            try :
+                                task_dispatch_to_slave_machine_group=task_index['next_dispatch_slave_machine_group']
+
+                                if 'None'==task_dispatch_to_slave_machine_group :
+                                    task_dispatch_to_slave_machine_group=None
+                            except :
+                                pass
+
+                            task_list.add_task(task,task_dispatch_to_slave_machine_group)
+
+                        if None==task_dispatch_to_target_slave_machine_group :
+                            task_dispatch.add_init_task(task_list,False)
+                        else :
+                            task_dispatch.add_init_task(task_list,False,task_dispatch_to_target_slave_machine_group)
+
+                        result_json['success']='OK'
+                    else :
+                        result_json['error']='None'
+                except :
+                    result_json['error']='None'
         else :
             result_json['error']='None'
         
